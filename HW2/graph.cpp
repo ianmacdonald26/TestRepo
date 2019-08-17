@@ -314,10 +314,29 @@ class Graph {
 public:
 	//Constructor
   Graph(int nvert): nvert(nvert), g(nvert, T(nvert)) {};
+
   T &operator[](int i){return g[i];};
+
   const T &operator[](int i) const {return g[i];};
+
   int get_nvert() const {return nvert;};
+
   friend std::ostream &operator<< <>(std::ostream &out, const Graph<T> &g);
+
+  void print_adjacency(std::ostream &out) {
+    for (int i=0; i<nvert; i++) {
+        out<<i<<": ";
+        for (int j=0; j<nvert; j++) {
+          auto *ed=g[i].find_neighbour(j);
+          if (ed) {
+            out<<"("<<j<<" "<<*ed<<")";
+          } else {
+            out<<"("<<j<<" false)";
+          }
+        }
+        out<<"\n";
+      }
+  }
 protected:
 	int nvert; // Number of vertices
 	std::vector<T> g;
@@ -332,16 +351,18 @@ inline std::ostream &operator<<(std::ostream &out, const Graph<T> &g){
 
 //***************************************************************************
 //***************************************************************************
-template<class T, class E, class D>
+template<class T>
 class Dijkstra : public Graph<T> {
 public:
     Dijkstra(int nvert): Graph<T>(nvert) {};
+
+    template<class D, class F>
     int shortest_distance(
         int start_vert,  // Vertex to start from
         int end_vert, // Stop when shortest distance has been found for
                       // this vertex
         // Function to map edge data to edge weight
-        std::function<D(const E &)> const &weight,
+        F edge_data_to_distance,
         D large, // Distance larger than any possible path length
         std::vector<bool> &zvisited, // Set to true when vertex has been visited
         std::vector<D> &distance, // Shortest path distance after node has been visited
@@ -369,7 +390,7 @@ public:
           for (auto e: this->g[cvert]) {
             const int neigh=e.get_vertex();
             if (!zvisited[neigh]) {
-              const D neigh_dist=cdist+weight(e.get_data());
+              const D neigh_dist=cdist+edge_data_to_distance(e.get_data());
               //std::cout<<cvert<<" "<<neigh<<" "<<distance[neigh]<<
               //" "<<neigh_dist<<"\n";
               if (neigh_dist<distance[neigh]) {
@@ -387,20 +408,21 @@ public:
 
 //***************************************************************************
 //***************************************************************************
-template<class G, class E>
+template<class G>
 class RandomUndirectedGraph : public G {
 public:
+  template<class F>
 	RandomUndirectedGraph(int nvert,
 			std::default_random_engine &gen,
 			double p,
-			std::function<E(std::default_random_engine &)> const &ran_data) 
+			F ran_edge_data)
 			: G(nvert) {
 
 			auto dist=std::uniform_real_distribution<double>(0.0,1.0);
 		for (int i=0; i<nvert; i++) {
 			for (int j=i+1; j<nvert; j++) {
 				if (dist(gen)<p) {
-					const E data=ran_data(gen);
+					const auto data=ran_edge_data(gen);
 					this->g[i].add_neighbour(j,data);
 					this->g[j].add_neighbour(i,data);
 				}
@@ -421,16 +443,23 @@ Distribution get_right_distribution(const T a, const T b) {
     return Distribution(a, b);
 }
 
-template<class T> void test(int);
-
 template<class container, class edge_data, class dist_type>
 void montecarlo(int nvert, double prob, dist_type wmin, dist_type wmax,
-                int nsamples, int outfreq, unsigned seed);
+                int nsamples, int outfreq, unsigned seed, bool zverbose);
+
+void simple_tests()
+{
+    unsigned seed=12345678; // Fixed seed for run-to-run comparisons
+
+    montecarlo<graph::NeighbourSet<int>, int, int>
+                    (10, 0.5, 1, 10, 1, 0, seed, true);
+    montecarlo<graph::NeighbourSet<double>, double, double>
+                    (10, 0.5, 1, 10, 1, 0, seed, true);
+}
 
 int main() {
 
-	//test<int>(10); // Test routines
-	//test<double>(10); // Test routines
+  simple_tests();
 
 	// Use double distances
 	using dist_type=double;
@@ -465,23 +494,23 @@ int main() {
 			" outfreq="<<outfreq<<"\n";
 
 	// Get random seed
-	unsigned seed=std::chrono::system_clock::now().time_since_epoch().count();
-	//unsigned seed=12345678; // Fixed seed for run-to-run comparisons
+	//unsigned seed=std::chrono::system_clock::now().time_since_epoch().count();
+	unsigned seed=12345678; // Fixed seed for run-to-run comparisons
 	
 	std::cout<<"Edge list storage\n";
 	montecarlo<graph::NeighbourSet<edge_data>, edge_data, dist_type>
-                  (nvert, prob, wmin, wmax, nsamples, outfreq, seed);
+                  (nvert, prob, wmin, wmax, nsamples, outfreq, seed, false);
     
   std::cout<<"Adjacency vector storage\n";
   montecarlo<graph::NeighbourSetAdj<edge_data>, edge_data, dist_type>
-                  (nvert, prob, wmin, wmax, nsamples, outfreq, seed);
+                  (nvert, prob, wmin, wmax, nsamples, outfreq, seed, false);
 
 	return 0;
 }
 
 template<class container, class edge_data, class dist_type>
 void montecarlo(int nvert, double prob, dist_type wmin, dist_type wmax,
-                int nsamples, int outfreq, unsigned seed) {
+                int nsamples, int outfreq, unsigned seed, bool zverbose) {
 
 	// Create random generator
 	std::default_random_engine gen(seed);
@@ -497,13 +526,13 @@ void montecarlo(int nvert, double prob, dist_type wmin, dist_type wmax,
 	std::vector<dist_type> distance(nvert); // On return will hold shortest distance for visited vertex
 	std::vector<int> parent(nvert); // On return will hold the parent vertex for each visited vertex
 
-	using Dijkstra_graph=graph::Dijkstra<container, edge_data, dist_type>;
+	using Dijkstra_graph=graph::Dijkstra<container>;
 
 	auto tstart = std::chrono::high_resolution_clock::now();
 	for (int count=0; count<nsamples; count++) {
 
 		// Create the random Graph
-		graph::RandomUndirectedGraph<Dijkstra_graph, edge_data> rg(nvert,  gen, prob,
+		graph::RandomUndirectedGraph<Dijkstra_graph> rg(nvert,  gen, prob,
 				[wmin,wmax](std::default_random_engine &gen)
 				{
 					auto dist=get_right_distribution<dist_type>(wmin,wmax);
@@ -511,10 +540,25 @@ void montecarlo(int nvert, double prob, dist_type wmin, dist_type wmax,
 				}
 		);
 
+		if (zverbose) {
+		  std::cout<<rg<<"\n";
+		  rg.print_adjacency(std::cout);
+		}
+
 		// Compute shortest distances
 		const int nvisited=rg.shortest_distance(start,end,
 				[](const edge_data &data){return static_cast<dist_type>(data);}, large,
 				zvisited,distance,parent);
+
+		if (zverbose) {
+		  std::cout<<"nvisited="<<nvisited<<"\n";
+		  for (int i=1; i<nvert; i++) std::cout<<zvisited[i]<<" ";
+		  std::cout<<"\n";
+		  for (int i=1; i<nvert; i++) std::cout<<distance[i]<<" ";
+		  std::cout<<"\n";
+		  for (int i=1; i<nvert; i++) std::cout<<parent[i]<<" ";
+		  std::cout<<"\n";
+		}
 
 		// If fully connected
 		if (nvisited==nvert) {
@@ -538,65 +582,6 @@ void montecarlo(int nvert, double prob, dist_type wmin, dist_type wmax,
 			accumavg<<" ("<<ntot<<" samples) \n";
 }
 
-template<class T>
-void test(int nvert) {
-
-	using dist_type=T;
-	using edgedata=dist_type;
-	const dist_type large=1000000000;
-
-	unsigned seed=std::chrono::system_clock::now().time_since_epoch().count();
-	std::default_random_engine gen(seed);
-
-	using Dijkstra_graph=graph::Dijkstra<graph::NeighbourSet<edgedata>, edgedata, dist_type>;
-
-	graph::RandomUndirectedGraph<Dijkstra_graph, edgedata> rg(nvert, gen, 0.4,
-			[](std::default_random_engine &gen)
-			{
-				auto dist=get_right_distribution<dist_type>(1,10);
-				return static_cast<edgedata>(dist(gen));
-			}
-	);
-
-	std::cout<<rg<<"\n";
-
-	for (int i=0; i<nvert; i++) {
-		std::cout<<i<<": ";
-		for (int j=0; j<nvert; j++) {
-			const edgedata *ed=rg[i].find_neighbour(j);
-			if (ed) {
-				std::cout<<"("<<j<<" "<<*ed<<")";
-			} else {
-				std::cout<<"("<<j<<" false)";
-			}
-		}
-		std::cout<<"\n";
-	}
-
-	std::vector<bool> zvisited(nvert);
-	std::vector<dist_type> distance(nvert);
-	std::vector<int> parent(nvert);
-
-	const int nvisited=rg.shortest_distance(0,-1,
-			[](const edgedata &data){return static_cast<dist_type>(data);}, large,
-			zvisited,distance,parent);
-
-	std::cout<<"nvisited="<<nvisited<<"\n";
-	for (int i=1; i<nvert; i++) std::cout<<zvisited[i]<<" ";
-	std::cout<<"\n";
-	for (int i=1; i<nvert; i++) std::cout<<distance[i]<<" ";
-	std::cout<<"\n";
-	for (int i=1; i<nvert; i++) std::cout<<parent[i]<<" ";
-	std::cout<<"\n";
-
-	if (nvisited==nvert) {
-		const double avgdist=std::accumulate(distance.cbegin()+1,
-						distance.cend(), static_cast<dist_type>(0))/(nvert-1.0);
-		std::cout<<"average shortest distance is "<<avgdist<<"\n";
-	} else {
-		std::cout<<"not fully connected \n";
-	}
-}
 
 
 
