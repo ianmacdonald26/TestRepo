@@ -3,11 +3,57 @@
  *
  *  Created on: 13 Aug 2019
  *      Author: Ian MacDonald
- */
 
-/*
 Description of Work:
 -------------------
+There are a number approaches for implementing a graph ADT. I wanted to develop a framework that would be
+efficient for the Dijkstra method, but could also be tailored to be efficient for other algorithms.
+The key requirement for Dijkstra is to loop over all vertices connected to a particular vertex,
+obtaining the weights for each of the corresponding edges. I will refer to the connected vertices as
+NEIGHBOURS.
+My framework is based on a neighbour set container class that holds the set of neighbours (with templated
+edge data) for a single vertex. An iterator is provided to make it easy to loop over the neighbours.
+My "Graph" class is now just a container for the neighbour sets of all the vertices and is templated
+on the neighbour set container class.
+The interface for the neighbour set container is independent of its internal representation. In regards
+to Dijkstra, it seems logical that the Adjacency List Scheme is the most efficient. The class
+"NeighbourSetAdjList" stores a std::vector of the neighbours of a vertex. This approach makes
+finding whether a particular vertex is a neighbour ("find_neighbour" method) inefficient, but this is not
+required by Dijkstra.
+I have also implemented the class "NeighbourSetAdjMat" that uses the alternative Adjacency Matrix strategy.
+Here a std::vector stores a potential neighbour entry for all vertices. This makes the find operation
+efficient, but looping over neighbours less efficient than the Adjacency List strategy.
+We would expect the Adjacency Matrix approach to be more costly than the Adjacency List one, because
+of the greater inefficiency in looping over vertex neighbours for Dijkstra. As the edge probability
+increases, I would expect the cost of the Adjacency Matrix strategy to approach that of Adjacency List,
+but still be more costly. However, the actual results are slightly counter-intuitive, in that the
+Adjacency Matrix formulation actually becomes cheaper than the Adjacency List one for large enough
+edge probabilities. For example, this is at a probability of only about 0.2 with 50 vertices.
+The switch over probability increases with increasing number of vertices.
+It seems likely that cache efficiency may explain why the Adjacency Matrix approach becomes cheaper. It has
+the advantage that all the vectors are of known size when the "Graph" constructor is called. This would allow
+them to be allocated consecutively in memory.
+The "Graph" class is extended to the "Dijkstra" class in order to supply the method to carry out the Dijkstra
+shortest method algorithm. The "Graph" class, or any class derived from it (e.g. "Dijkstra") can be extended
+to the "RandomUndirectedGraph" class. Its constructor sets up a undirected random graph, with
+a specified edge probability and random edge weights, in the range wmin<=w= wmax.
+The main program asks the user for the model parameters. It then computes the average shortest path length over
+the requested number of randomly generated graphs. This is done for both the Adjacency List and Adjacency Matrix
+based neighbour set containers, allowing the computational costs to be compared.
+
+Observations from results:
+-------------------------
+For a fixed number of vertices, the mean shortest path reduces with increasing edge probability. This is
+because there is an increasing probability of finding a shorter path between vertices.
+For a fixed probability, the mean shortest path reduces with increasing number of vertices
+
+C++ techniques learned:
+----------------------
+1) How to provide iterators for a custom container class
+2) How to build classes using templates
+3) Creating and passing lambdas to methods
+4) How to use the new STL random number generation
+
 
 Summary of results:
 ------------------
@@ -24,11 +70,11 @@ Enter total number of samples >100000
 Enter output frequency >0
 nvert=50 prob=0.2 wmin=1 wmax=10 nsamples=100000 outfreq=0
 seed=2978023875
-Edge list storage
+ADJACANCY LIST METHOD
 Elapsed time: 8.71821 s
 102 graphs out of 100000 were not fully connected
 average shortest distance for 50 vertices with probability 0.2 and weight in (1,10) is 6.97778 (99898 samples)
-Adjacency vector storage
+ADJACANCY MATRIX METHOD
 Elapsed time: 8.15372 s
 102 graphs out of 100000 were not fully connected
 average shortest distance for 50 vertices with probability 0.2 and weight in (1,10) is 6.97778 (99898 samples)
@@ -43,14 +89,14 @@ Enter total number of samples >100000
 Enter output frequency >0
 nvert=50 prob=0.4 wmin=1 wmax=10 nsamples=100000 outfreq=0
 seed=2759962876
-Edge list storage
+ADJACANCY LIST METHOD
 Elapsed time: 12.0819 s
 0 graphs out of 100000 were not fully connected
 average shortest distance for 50 vertices with probability 0.4 and weight in (1,10) is 4.7069 (100000 samples)
-Adjacency vector storage
-Elapsed time: 10.2772 s
-0 graphs out of 100000 were not fully connected
-average shortest distance for 50 vertices with probability 0.4 and weight in (1,10) is 4.7069 (100000 samples)
+ADJACANCY MATRIX METHOD
+Elapsed time: 8.15372 s
+102 graphs out of 100000 were not fully connected
+average shortest distance for 50 vertices with probability 0.2 and weight in (1,10) is 6.97778 (99898 samples)
  */
 
 #include <chrono>
@@ -102,25 +148,25 @@ template<class EdgeDataType> inline std::ostream &operator<<(std::ostream &out,
 }
 
 //***************************************************************************
-// The class "NeighbourSet<T>" holds the set of neighbours for a particular vertex.
+// The class "NeighbourSetAdjList<T>" holds the set of neighbours for a particular vertex.
 // This implementation stores a std::vector of the "Neighbour<E>" objects.
 // Iterators are provided to allow the the user to iterate over the set of neighbours
 // The class is templated over edge data type (T)
 //***************************************************************************
-template<class EdgeDataType> class NeighbourSet;
-template<class EdgeDataType> class NeighbourSet_iterator;
-template<class EdgeDataType> class NeighbourSet_const_iterator;
+template<class EdgeDataType> class NeighbourSetAdjList;
+template<class EdgeDataType> class NeighbourSetAdjList_iterator;
+template<class EdgeDataType> class NeighbourSetAdjList_const_iterator;
 template<class EdgeDataType> std::ostream &operator<<(std::ostream &out,
-    NeighbourSet<EdgeDataType> const list);
+    NeighbourSetAdjList<EdgeDataType> const list);
 
 template<class EdgeDataType>
-class NeighbourSet {
+class NeighbourSetAdjList {
   public:
-    using iterator=NeighbourSet_iterator<EdgeDataType>;
-    using const_iterator=NeighbourSet_const_iterator<EdgeDataType>;
+    using iterator=NeighbourSetAdjList_iterator<EdgeDataType>;
+    using const_iterator=NeighbourSetAdjList_const_iterator<EdgeDataType>;
 
     // Constructor
-    NeighbourSet(int nvert){}; //nvert not needed for this implementation
+    NeighbourSetAdjList(int nvert){}; //nvert not needed for this implementation
 
     // Add neighbour
     void add_neighbour(int vertex, const EdgeDataType &data) {
@@ -143,7 +189,7 @@ class NeighbourSet {
     const_iterator cend() const {return const_iterator(neighbours.cend());};
 
     friend std::ostream &operator<< <>(std::ostream &out,
-        NeighbourSet<EdgeDataType> const list);
+        NeighbourSetAdjList<EdgeDataType> const list);
 
   private:
     // Vector of neighbours
@@ -152,27 +198,27 @@ class NeighbourSet {
 
 template<class EdgeDataType>
 inline std::ostream &operator<<(std::ostream &out,
-    NeighbourSet<EdgeDataType> const list) {
+    NeighbourSetAdjList<EdgeDataType> const list) {
     for (auto neigh: list.neighbours)
       out<<neigh<<" ";
     return out;
 }
 
 //*************************************************
-// iterator class for "NeighbourSet"
+// iterator class for "NeighbourSetAdjList"
 //*************************************************
 // iterator class
 template<class EdgeDataType>
-class NeighbourSet_iterator {
+class NeighbourSetAdjList_iterator {
   public:
-    using self_type=NeighbourSet_iterator;
+    using self_type=NeighbourSetAdjList_iterator;
     using iterator_category=std::forward_iterator_tag;
     using value_type=Neighbour<EdgeDataType>;
     using difference_type=std::ptrdiff_t;
     using pointer=Neighbour<EdgeDataType>*;
     using reference=Neighbour<EdgeDataType>&;
     // Constructor
-    NeighbourSet_iterator(
+    NeighbourSetAdjList_iterator(
         typename std::vector<value_type>::iterator const &it): it(it){};
     reference operator*() const {return *it;};
     pointer operator->() const {return it;};
@@ -189,19 +235,19 @@ class NeighbourSet_iterator {
 };
 
 //*************************************************
-// const_iterator class for "NeighbourSet"
+// const_iterator class for "NeighbourSetAdjList"
 //*************************************************
 template<class EdgeDataType>
-class NeighbourSet_const_iterator {
+class NeighbourSetAdjList_const_iterator {
   public:
-    using self_type=NeighbourSet_const_iterator;
+    using self_type=NeighbourSetAdjList_const_iterator;
     using iterator_category=std::forward_iterator_tag;
     using value_type=Neighbour<EdgeDataType>;
     using difference_type=std::ptrdiff_t;
     using pointer=const Neighbour<EdgeDataType>*;
     using reference=const Neighbour<EdgeDataType>&;
     // Constructor
-    NeighbourSet_const_iterator(
+    NeighbourSetAdjList_const_iterator(
         typename std::vector<value_type>::const_iterator const &it): it(it){};
     reference operator*() const {return *it;};
     pointer operator->() const {return it;};
@@ -218,7 +264,7 @@ class NeighbourSet_const_iterator {
 };
 
 //***************************************************************************
-// The class "NeighbourSetAdj<T>" holds the set of neighbours for a particular vertex.
+// The class "NeighbourSetAdjMat<T>" holds the set of neighbours for a particular vertex.
 // This implementation stores a std::vector with an entry for the all possible neighbours.
 // Only the entries corresponding to actual neighbours have valid vertex numbers set.
 // Iterators are provides to allow the the user to iterate over the set of neighbours
@@ -226,19 +272,19 @@ class NeighbourSet_const_iterator {
 // because they need to skip over the entries that are not neighbours.
 // The class is templated over edge data type (T).
 //***************************************************************************
-template<class EdgeDataType> class NeighbourSetAdj;
-template<class EdgeDataType> class NeighbourSetAdj_iterator;
-template<class EdgeDataType> class NeighbourSetAdj_const_iterator;
+template<class EdgeDataType> class NeighbourSetAdjMat;
+template<class EdgeDataType> class NeighbourSetAdjMat_iterator;
+template<class EdgeDataType> class NeighbourSetAdjMat_const_iterator;
 template<class EdgeDataType> std::ostream &operator<<(std::ostream &out,
-    NeighbourSetAdj<EdgeDataType> const list);
+    NeighbourSetAdjMat<EdgeDataType> const list);
 
 template<class EdgeDataType>
-class NeighbourSetAdj {
+class NeighbourSetAdjMat {
   public:
-    using iterator=NeighbourSetAdj_iterator<EdgeDataType>;
-    using const_iterator=NeighbourSetAdj_const_iterator<EdgeDataType>;
+    using iterator=NeighbourSetAdjMat_iterator<EdgeDataType>;
+    using const_iterator=NeighbourSetAdjMat_const_iterator<EdgeDataType>;
     // Constructor
-    NeighbourSetAdj(int nvert) : neighbours(nvert) {};
+    NeighbourSetAdjMat(int nvert) : neighbours(nvert) {};
     void add_neighbour(int vertex, const EdgeDataType &data) {
       neighbours[vertex]=Neighbour<EdgeDataType>(vertex,data);
     }
@@ -272,7 +318,7 @@ class NeighbourSetAdj {
     const_iterator cend() const {return const_iterator(neighbours.cend(),neighbours.cend());};
 
     friend std::ostream &operator<< <>(std::ostream &out,
-        NeighbourSetAdj<EdgeDataType> const list);
+        NeighbourSetAdjMat<EdgeDataType> const list);
 
   private:
     // Vector of neighbours
@@ -281,26 +327,26 @@ class NeighbourSetAdj {
 
 template<class EdgeDataType>
 inline std::ostream &operator<<(std::ostream &out,
-    NeighbourSetAdj<EdgeDataType> const set) {
+    NeighbourSetAdjMat<EdgeDataType> const set) {
     for (auto neigh: set.neighbours)
       if (neigh.get_vertex()>0) out<<neigh<<" ";
     return out;
 }
 
 //*************************************************
-// iterator class for "NeighbourSetAdj"
+// iterator class for "NeighbourSetAdjMat"
 //*************************************************
 template<class EdgeDataType>
-class NeighbourSetAdj_iterator {
+class NeighbourSetAdjMat_iterator {
   public:
-    using self_type=NeighbourSetAdj_iterator;
+    using self_type=NeighbourSetAdjMat_iterator;
     using iterator_category=std::forward_iterator_tag;
     using value_type=Neighbour<EdgeDataType>;
     using difference_type=std::ptrdiff_t;
     using pointer=Neighbour<EdgeDataType>*;
     using reference=Neighbour<EdgeDataType>&;
     // Constructor
-    NeighbourSetAdj_iterator(
+    NeighbourSetAdjMat_iterator(
         typename std::vector<value_type>::iterator const &it,
         typename std::vector<value_type>::iterator const &itend)
     : it(it), itend(itend) {};
@@ -326,19 +372,19 @@ class NeighbourSetAdj_iterator {
 };
 
 //*************************************************
-// const_iterator class for "NeighbourSetAdj"
+// const_iterator class for "NeighbourSetAdjMat"
 //*************************************************
 template<class EdgeValueType>
-class NeighbourSetAdj_const_iterator {
+class NeighbourSetAdjMat_const_iterator {
   public:
-    using self_type=NeighbourSetAdj_const_iterator;
+    using self_type=NeighbourSetAdjMat_const_iterator;
     using iterator_category=std::forward_iterator_tag;
     using value_type=Neighbour<EdgeValueType>;
     using difference_type=std::ptrdiff_t;
     using pointer=const Neighbour<EdgeValueType>*;
     using reference=const Neighbour<EdgeValueType>&;
     // Constructor
-    NeighbourSetAdj_const_iterator(
+    NeighbourSetAdjMat_const_iterator(
         typename std::vector<value_type>::const_iterator const &it,
         typename std::vector<value_type>::const_iterator const &itend)
     : it(it), itend(itend) {};
@@ -365,7 +411,7 @@ class NeighbourSetAdj_const_iterator {
 
 //***************************************************************************
 // The "Graph<T>" class is the container of the neighbour sets for all vertices.
-// The template parameter T can either be NeighbourSet<E> or NeighbourSetAdj<E>,
+// The template parameter T can either be NeighbourSetAdjList<E> or NeighbourSetAdjMat<E>,
 // where E is an edge data type, or some other to be defined neighbour set class.
 // The [] operator is overloaded to return a reference to the neighbour set
 // for the requested vertex.
@@ -556,16 +602,16 @@ void simple_tests()
 {
   unsigned seed=12345678; // Fixed seed for run-to-run comparisons
 
-  montecarlo<graph::NeighbourSet<int>, int, int>
+  montecarlo<graph::NeighbourSetAdjList<int>, int, int>
   (10, 0.5, 1, 10, 1, 0, seed, true);
-  montecarlo<graph::NeighbourSet<double>, double, double>
+  montecarlo<graph::NeighbourSetAdjList<double>, double, double>
   (10, 0.5, 1, 10, 1, 0, seed, true);
 }
 
 //***************************************************************************
 // Main routine reads in the run parameters and then calls the montecarlo
-// routine, first with the "NeighbourSet" scheme and then with the
-// "NeighbourSetAdj" scheme. This allows a comparison of the performance of
+// routine, first with the "NeighbourSetAdjList" scheme and then with the
+// "NeighbourSetAdjMat" scheme. This allows a comparison of the performance of
 // the two different graph storage schema
 //***************************************************************************
 int main() {
@@ -606,12 +652,12 @@ int main() {
   //unsigned seed=12345678; // Fixed seed for run-to-run comparisons
   std::cout<<"seed="<<seed<<"\n";
 
-  std::cout<<"Edge list storage\n";
-  montecarlo<graph::NeighbourSet<EdgeDataType>, EdgeDataType, DistType>
+  std::cout<<"ADJACANCY LIST METHOD\n";
+  montecarlo<graph::NeighbourSetAdjList<EdgeDataType>, EdgeDataType, DistType>
   (nvert, prob, wmin, wmax, nsamples, outfreq, seed, false);
 
-  std::cout<<"Adjacency vector storage\n";
-  montecarlo<graph::NeighbourSetAdj<EdgeDataType>, EdgeDataType, DistType>
+  std::cout<<"ADJACANCY MATRIX METHOD\n";
+  montecarlo<graph::NeighbourSetAdjMat<EdgeDataType>, EdgeDataType, DistType>
   (nvert, prob, wmin, wmax, nsamples, outfreq, seed, false);
 
   return 0;
@@ -709,7 +755,3 @@ void montecarlo(int nvert, double prob, DistType wmin, DistType wmax,
         prob<<" and weight in ("<<wmin<<","<<wmax<<") is "<<
         accumavg<<" ("<<ntot<<" samples) \n";
 }
-
-
-
-
