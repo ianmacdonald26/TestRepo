@@ -1,0 +1,27 @@
+Code Output:
+average shortest distance for 50 vertices with probability 0.2 and weight in (1,10) is 6.97778 (99898 samples)
+average shortest distance for 50 vertices with probability 0.4 and weight in (1,10) is 4.7069 (100000 samples)
+
+
+There are a number approaches for implementing a graph ADT. I wanted to develop a framework that would be efficient for the Dijkstra method, but could also be tailored to be efficient for other algorithms. The key requirement for Dijkstra is to loop over all vertices connected to a particular vertex, obtaining the weights for each of the corresponding edges. I will refer to the connected vertices as NEIGHBOURS.
+
+My framework is based on a neighbour set container class that holds the set of neighbours (with templated edge data) for a single vertex. An iterator is provided to make it easy to loop over the neighbours. My "Graph" class is now just a container for the neighbour sets of all the vertices and is templated on the neighbour set container class.
+
+The interface for the neighbour set container is independent of its internal representation. In regards to Dijkstra, it seems logical that the Adjacency List Scheme is the most efficient. The class "NeighbourSetAdjList" stores a std::vector of the neighbours of a vertex. This approach makes finding whether a particular vertex is a neighbour ("find_neighbour" method) inefficient, but this is not required by Dijkstra.
+
+I have also implemented the class "NeighbourSetAdjMat" that uses the alternative Adjacency Matrix strategy. Here a std::vector stores a potential neighbour entry for all vertices. This makes the find operation efficient, but looping over neighbours less efficient than the Adjacency List strategy. I would expect the Adjacency Matrix approach to be more costly than the Adjacency List one, because of the greater inefficiency in looping over vertex neighbours for Dijkstra. As the edge probability increases, I would expect the cost of the Adjacency Matrix strategy to approach that of Adjacency List, but still be more costly. However, the actual results are slightly counter-intuitive, in that the Adjacency Matrix formulation actually becomes cheaper than the Adjacency List one for large enough edge probabilities. For example, this is at a probability of only about 0.2 with 50 vertices. The switch over probability increases with increasing number of vertices. It seems likely that cache efficiency may explain why the Adjacency Matrix approach becomes cheaper. It has the advantage that all the vectors are of known size when the "Graph" constructor is called. This would allow them to be allocated consecutively in memory.
+
+The "Graph" class is extended to the "Dijkstra" class in order to supply the method to carry out the Dijkstra shortest method algorithm. The "Graph" class, or any class derived from it (e.g. "Dijkstra") can be extended to the "RandomUndirectedGraph" class. Its constructor sets up a undirected random graph, with a specified edge probability and random edge weights, in the range wmin<=w<=wmax.
+
+The main program asks the user for the model parameters. It then computes the average shortest path length over the requested number of randomly generated graphs. This is done for both the Adjacency List and Adjacency Matrix based neighbour set containers, allowing the computational costs to be compared.
+
+Observations from results:
+For a fixed number of vertices, the mean shortest path reduces with increasing edge probability. This is because there is an increasing probability of finding a shorter path between vertices.
+
+For a fixed probability, the mean shortest path reduces with increasing number of vertices
+
+C++ techniques learned:
+1) How to provide iterators for a custom container class
+2) How to build classes using templates
+3) Creating and passing lambdas to methods
+4) How to use the new STL random number generation

@@ -1,102 +1,40 @@
 /*
- * graph.cpp
- *
- *  Created on: 13 Aug 2019
- *      Author: Ian MacDonald
+Code Output:
+average shortest distance for 50 vertices with probability 0.2 and weight in (1,10) is 6.97778 (99898 samples)
+average shortest distance for 50 vertices with probability 0.4 and weight in (1,10) is 4.7069 (100000 samples)
 
-Description of Work:
--------------------
-There are a number approaches for implementing a graph ADT. I wanted to develop a framework that would be
-efficient for the Dijkstra method, but could also be tailored to be efficient for other algorithms.
-The key requirement for Dijkstra is to loop over all vertices connected to a particular vertex,
-obtaining the weights for each of the corresponding edges. I will refer to the connected vertices as
-NEIGHBOURS.
-My framework is based on a neighbour set container class that holds the set of neighbours (with templated
-edge data) for a single vertex. An iterator is provided to make it easy to loop over the neighbours.
-My "Graph" class is now just a container for the neighbour sets of all the vertices and is templated
-on the neighbour set container class.
-The interface for the neighbour set container is independent of its internal representation. In regards
-to Dijkstra, it seems logical that the Adjacency List Scheme is the most efficient. The class
-"NeighbourSetAdjList" stores a std::vector of the neighbours of a vertex. This approach makes
-finding whether a particular vertex is a neighbour ("find_neighbour" method) inefficient, but this is not
-required by Dijkstra.
-I have also implemented the class "NeighbourSetAdjMat" that uses the alternative Adjacency Matrix strategy.
-Here a std::vector stores a potential neighbour entry for all vertices. This makes the find operation
-efficient, but looping over neighbours less efficient than the Adjacency List strategy.
-We would expect the Adjacency Matrix approach to be more costly than the Adjacency List one, because
-of the greater inefficiency in looping over vertex neighbours for Dijkstra. As the edge probability
-increases, I would expect the cost of the Adjacency Matrix strategy to approach that of Adjacency List,
-but still be more costly. However, the actual results are slightly counter-intuitive, in that the
-Adjacency Matrix formulation actually becomes cheaper than the Adjacency List one for large enough
-edge probabilities. For example, this is at a probability of only about 0.2 with 50 vertices.
-The switch over probability increases with increasing number of vertices.
-It seems likely that cache efficiency may explain why the Adjacency Matrix approach becomes cheaper. It has
-the advantage that all the vectors are of known size when the "Graph" constructor is called. This would allow
-them to be allocated consecutively in memory.
-The "Graph" class is extended to the "Dijkstra" class in order to supply the method to carry out the Dijkstra
-shortest method algorithm. The "Graph" class, or any class derived from it (e.g. "Dijkstra") can be extended
-to the "RandomUndirectedGraph" class. Its constructor sets up a undirected random graph, with
-a specified edge probability and random edge weights, in the range wmin<=w= wmax.
-The main program asks the user for the model parameters. It then computes the average shortest path length over
-the requested number of randomly generated graphs. This is done for both the Adjacency List and Adjacency Matrix
-based neighbour set containers, allowing the computational costs to be compared.
+
+There are a number approaches for implementing a graph ADT. I wanted to develop a framework that would be efficient for the Dijkstra method, but could also be tailored to be efficient for other algorithms. The key requirement for Dijkstra is to loop over all vertices connected to a particular vertex, obtaining the weights for each of the corresponding edges. I will refer to the connected vertices as NEIGHBOURS.
+
+My framework is based on a neighbour set container class that holds the set of neighbours (with templated edge data) for a single vertex. An iterator is provided to make it easy to loop over the neighbours. My "Graph" class is now just a container for the neighbour sets of all the vertices and is templated on the neighbour set container class.
+
+The interface for the neighbour set container is independent of its internal representation. In regards to Dijkstra, it seems logical that the Adjacency List Scheme is the most efficient. The class "NeighbourSetAdjList" stores a std::vector of the neighbours of a vertex. This approach makes finding whether a particular vertex is a neighbour ("find_neighbour" method) inefficient, but this is not required by Dijkstra.
+
+I have also implemented the class "NeighbourSetAdjMat" that uses the alternative Adjacency Matrix strategy. Here a std::vector stores a potential neighbour entry for all vertices. This makes the find operation efficient, but looping over neighbours less efficient than the Adjacency List strategy. I would expect the Adjacency Matrix approach to be more costly than the Adjacency List one, because of the greater inefficiency in looping over vertex neighbours for Dijkstra. As the edge probability increases, I would expect the cost of the Adjacency Matrix strategy to approach that of Adjacency List, but still be more costly. However, the actual results are slightly counter-intuitive, in that the Adjacency Matrix formulation actually becomes cheaper than the Adjacency List one for large enough edge probabilities. For example, this is at a probability of only about 0.2 with 50 vertices. The switch over probability increases with increasing number of vertices. It seems likely that cache efficiency may explain why the Adjacency Matrix approach becomes cheaper. It has the advantage that all the vectors are of known size when the "Graph" constructor is called. This would allow them to be allocated consecutively in memory.
+
+The "Graph" class is extended to the "Dijkstra" class in order to supply the method to carry out the Dijkstra shortest method algorithm. The "Graph" class, or any class derived from it (e.g. "Dijkstra") can be extended to the "RandomUndirectedGraph" class. Its constructor sets up a undirected random graph, with a specified edge probability and random edge weights, in the range wmin<=w<=wmax.
+
+The main program asks the user for the model parameters. It then computes the average shortest path length over the requested number of randomly generated graphs. This is done for both the Adjacency List and Adjacency Matrix based neighbour set containers, allowing the computational costs to be compared.
 
 Observations from results:
--------------------------
-For a fixed number of vertices, the mean shortest path reduces with increasing edge probability. This is
-because there is an increasing probability of finding a shorter path between vertices.
+For a fixed number of vertices, the mean shortest path reduces with increasing edge probability. This is because there is an increasing probability of finding a shorter path between vertices.
+
 For a fixed probability, the mean shortest path reduces with increasing number of vertices
 
 C++ techniques learned:
-----------------------
 1) How to provide iterators for a custom container class
 2) How to build classes using templates
 3) Creating and passing lambdas to methods
 4) How to use the new STL random number generation
+*/
 
-
-Summary of results:
-------------------
-average shortest distance for 50 vertices with probability 0.2 and weight in (1,10) is 6.97778 (99898 samples)
-average shortest distance for 50 vertices with probability 0.4 and weight in (1,10) is 4.7069 (100000 samples)
-
-Input/Output prob=0.2:
----------------------
-Enter number of vertices >50
-Enter probability [0,1] >0.2
-Enter min egde weight wmin (>0) >1
-Enter max edge weight wmax (>wmin) >10
-Enter total number of samples >100000
-Enter output frequency >0
-nvert=50 prob=0.2 wmin=1 wmax=10 nsamples=100000 outfreq=0
-seed=2978023875
-ADJACANCY LIST METHOD
-Elapsed time: 8.71821 s
-102 graphs out of 100000 were not fully connected
-average shortest distance for 50 vertices with probability 0.2 and weight in (1,10) is 6.97778 (99898 samples)
-ADJACANCY MATRIX METHOD
-Elapsed time: 8.15372 s
-102 graphs out of 100000 were not fully connected
-average shortest distance for 50 vertices with probability 0.2 and weight in (1,10) is 6.97778 (99898 samples)
-
-Input/Output prob=0.4
----------------------
-Enter number of vertices >50
-Enter probability [0,1] >0.4
-Enter min egde weight wmin (>0) >1
-Enter max edge weight wmax (>wmin) >10
-Enter total number of samples >100000
-Enter output frequency >0
-nvert=50 prob=0.4 wmin=1 wmax=10 nsamples=100000 outfreq=0
-seed=2759962876
-ADJACANCY LIST METHOD
-Elapsed time: 12.0819 s
-0 graphs out of 100000 were not fully connected
-average shortest distance for 50 vertices with probability 0.4 and weight in (1,10) is 4.7069 (100000 samples)
-ADJACANCY MATRIX METHOD
-Elapsed time: 8.15372 s
-102 graphs out of 100000 were not fully connected
-average shortest distance for 50 vertices with probability 0.2 and weight in (1,10) is 6.97778 (99898 samples)
+/*
+ * Dijkstra.cpp
+ *
+ *  Created on: 13 Aug 2019
+ *      Author: Ian MacDonald
+ *      
+ *      
  */
 
 #include <chrono>
@@ -114,7 +52,7 @@ namespace graph {
 
 //***************************************************************************
 // A graph is described by the neighbours connected to each vertex.
-// The class "Neighbour<EdgeDataType>" is used to describe each a
+// The class "Neighbour<EdgeDataType>" is used to describe a
 // single neighbour and the data associated with the corresponding edge.
 //***************************************************************************
 template<class EdgeDataType> class Neighbour;
@@ -148,10 +86,10 @@ template<class EdgeDataType> inline std::ostream &operator<<(std::ostream &out,
 }
 
 //***************************************************************************
-// The class "NeighbourSetAdjList<T>" holds the set of neighbours for a particular vertex.
-// This implementation stores a std::vector of the "Neighbour<E>" objects.
+// The class "NeighbourSetAdjList<EdgeDataType>" holds the set of neighbours 
+// for a particular vertex using the Adjacency List approach.
+// This implementation stores a std::vector of the "Neighbour<EdgeDataType>" objects.
 // Iterators are provided to allow the the user to iterate over the set of neighbours
-// The class is templated over edge data type (T)
 //***************************************************************************
 template<class EdgeDataType> class NeighbourSetAdjList;
 template<class EdgeDataType> class NeighbourSetAdjList_iterator;
@@ -264,13 +202,13 @@ class NeighbourSetAdjList_const_iterator {
 };
 
 //***************************************************************************
-// The class "NeighbourSetAdjMat<T>" holds the set of neighbours for a particular vertex.
+// The class "NeighbourSetAdjMat<EdgeDataType>" holds the set of neighbours 
+// for a particular vertex using the Adjacency Matrix approach.
 // This implementation stores a std::vector with an entry for the all possible neighbours.
 // Only the entries corresponding to actual neighbours have valid vertex numbers set.
 // Iterators are provides to allow the the user to iterate over the set of neighbours
 // The iterators are more complicated and inefficient for this implementation,
 // because they need to skip over the entries that are not neighbours.
-// The class is templated over edge data type (T).
 //***************************************************************************
 template<class EdgeDataType> class NeighbourSetAdjMat;
 template<class EdgeDataType> class NeighbourSetAdjMat_iterator;
@@ -410,9 +348,11 @@ class NeighbourSetAdjMat_const_iterator {
 };
 
 //***************************************************************************
-// The "Graph<T>" class is the container of the neighbour sets for all vertices.
-// The template parameter T can either be NeighbourSetAdjList<E> or NeighbourSetAdjMat<E>,
-// where E is an edge data type, or some other to be defined neighbour set class.
+// The "Graph<NeighSetType>" class is the container of the neighbour sets for
+// all vertices.
+// The template parameter NeighSetType can either be 
+// NeighbourSetAdjList<EdgeValueType> or  NeighbourSetAdjMat<EdgeValueType>,
+// or some other to be defined neighbour set class.
 // The [] operator is overloaded to return a reference to the neighbour set
 // for the requested vertex.
 //***************************************************************************
@@ -470,22 +410,20 @@ class Dijkstra : public Graph<NeighSetType> {
 
     template<class DistType, class EdgeDistFunc>
     int shortest_distance(
-        int start_vert,  // Vertex to start from
-        int end_vert, // Stop when shortest distance has been found for
-        // this vertex.
-        // Setting this negative will mean that the method will only stop
-        // after the algorithm has visited all the vertices are
-        // possible to reach. The graphs is then fully connected
-        // only if the number of vertices visited (the return value) is
-        // equal to the total number of vertices.
+        int start_vert,  // Vertex to start from.
+        int end_vert,    // Stop when shortest distance has been found for this vertex.
+                         // Setting this negative will mean that the method will only stop
+                         // after the algorithm has visited all the vertices that it is
+                         // possible to reach. The graphs is then fully connected
+                         // only if the number of vertices visited (the return value) is
+                         // equal to the total number of vertices.
         EdgeDistFunc edge_data_to_distance, // Function to map edge data to edge distance
                                             // i.e. DistType(const EdgeDataType &)
-        DistType large, // Distance larger than any possible path length
-        // The following three vectors must be at least length nvertex.
-        // The first nvertex entries are set by the method.
-        std::vector<bool> &zvisited, // Set to true when a vertex has been visited
-        std::vector<DistType> &distance, // Shortest path distance to each vertex (if visited)
-        std::vector<int> &parent // Previous vertex for shortest distance path (if visited)
+        DistType large, // Distance larger than any possible path length.
+        // The following three vectors must be at least length nvertex:
+        std::vector<bool> &zvisited,     // Set to true when a vertex has been visited.
+        std::vector<DistType> &distance, // Shortest path distance to each vertex (if visited).
+        std::vector<int> &parent         // Previous vertex for shortest distance path (if visited).
     ) {
         // Initialise return data
         int n_visited=0;
@@ -551,15 +489,16 @@ class RandomUndirectedGraph : public GraphType {
   public:
     template<class RandEdgeFunc>
     RandomUndirectedGraph(int nvert,
-        std::default_random_engine &gen, // Reference to a default random engine
-        double p, // probabily that and vertex-vertex connection will exist
-        RandEdgeFunc ran_edge_data) // Function to create random edge data
-                                    // i.e. EdgeDataType(EdgeDataType &)
+        std::default_random_engine &gen, // Reference to a default random engine.
+        double p,                        // probabily that and vertex-vertex 
+	                                 // connection will exist.
+        RandEdgeFunc ran_edge_data)      // Function to create random edge data
+                                         // i.e. EdgeDataType(EdgeDataType &)
         : GraphType(nvert) {
 
       // Create uniform distribution [0,1]
       auto dist=std::uniform_real_distribution<double>(0.0,1.0);
-      // Loop over possible vertex pairs
+      // Loop over all possible vertex pairs
       for (int i=0; i<nvert; i++) {
         for (int j=i+1; j<nvert; j++) {
           // Generate random value and test against requested probability
