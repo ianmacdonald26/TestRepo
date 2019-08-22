@@ -11,14 +11,12 @@
 #include <cstddef>
 #include <functional>
 #include <iostream>
-#include <fstream>
 #include <queue>
 #include <random>
 #include <tuple>
 #include <type_traits>
 #include <utility>
 #include <vector>
-#include <string>
 
 namespace graph {
 
@@ -79,16 +77,8 @@ class NeighbourSetAdjList {
     NeighbourSetAdjList(int nvert){}; //nvert not needed for this implementation
 
     // Add neighbour
-    bool add_neighbour(int vertex, const EdgeDataType &data=EdgeDataType()) {
+    void add_neighbour(int vertex, const EdgeDataType &data) {
       neighbours.push_back(Neighbour<EdgeDataType>(vertex,data));
-      return true;
-    }
-    bool add_neighbour(int vertex, std::istream & in) {
-      EdgeDataType data;
-      const bool z=in>>data;
-      if (z)
-        neighbours.push_back(Neighbour<EdgeDataType>(vertex,data));
-      return z;
     }
 
     // Find neighbour and return pointer to data (nullptr if not found)
@@ -203,20 +193,13 @@ class NeighbourSetAdjMat {
     using const_iterator=NeighbourSetAdjMat_const_iterator<EdgeDataType>;
     // Constructor
     NeighbourSetAdjMat(int nvert) : neighbours(nvert) {};
-    bool add_neighbour(int vertex, const EdgeDataType &data=EdgeDataType()) {
+    void add_neighbour(int vertex, const EdgeDataType &data) {
       neighbours[vertex]=Neighbour<EdgeDataType>(vertex,data);
-      return true;
-    }
-    bool add_neighbour(int vertex, std::istream & in) {
-      EdgeDataType data;
-      const bool z=in>>data;
-      if (z)
-        neighbours[vertex]=Neighbour<EdgeDataType>(vertex,data);
-      return z;
     }
     // Find neighbour and return pointer to data
     const EdgeDataType *find_neighbour(int i) {
-      if (neighbours[i].get_vertex()>=0) return &neighbours[i].get_data();
+      auto neigh=neighbours[i];
+      if (neigh.get_vertex()>0) return &neigh.get_data();
       return nullptr; // Neighbour i not found
     }
     // iterator begin and end
@@ -231,14 +214,14 @@ class NeighbourSetAdjMat {
       auto it=neighbours.cbegin();
       // Find first entry
       while ((it!=neighbours.cend())&&(it->get_vertex()<=0)) ++it;
-      return const_iterator(it,neighbours.cend());
+      return iterator(it,neighbours.cend());
     };
     const_iterator end() const {return const_iterator(neighbours.cend(),neighbours.cend());};
     const_iterator cbegin() const {
       auto it=neighbours.cbegin();
       // Find first entry
       while ((it!=neighbours.cend())&&(it->get_vertex()<=0)) ++it;
-      return const_iterator(it,neighbours.cend());
+      return iterator(it,neighbours.cend());
     };
     const_iterator cend() const {return const_iterator(neighbours.cend(),neighbours.cend());};
 
@@ -350,24 +333,7 @@ template<class NeighSetType>
 class Graph {
   public:
     //Constructor
-    Graph(int nvert) : nvert(nvert), g(nvert, NeighSetType(nvert)) {};
-
-    Graph(std::string filename) : nvert(0), g(0, NeighSetType(0)){
-      std::ifstream in(filename);
-      in>>nvert;
-      g.resize(nvert,NeighSetType(nvert));
-      int i,j;
-      do {
-        in>>i>>j;
-        g[i].add_neighbour(j,in);
-      } while( in );
-       //} while( in  && std::cout<<"> "<<i<<" "<<j<<" "<<*(g[i].find_neighbour(j))<<"\n");
-      if (!in.eof()) {
-        std::cout<<"Error reading file: "<<filename<<"\n";
-        exit (EXIT_FAILURE);
-      }
-      in.close();
-    }
+    Graph(int nvert): nvert(nvert), g(nvert, NeighSetType(nvert)) {};
 
     NeighSetType &operator[](int i){return g[i];};
 
@@ -381,7 +347,7 @@ class Graph {
       for (int i=0; i<nvert; i++) {
         out<<i<<": ";
         for (int j=0; j<nvert; j++) {
-          auto ed=g[i].find_neighbour(j);
+          auto *ed=g[i].find_neighbour(j);
           if (ed) {
             out<<"("<<j<<" "<<*ed<<")";
           } else {
@@ -404,78 +370,150 @@ inline std::ostream &operator<<(std::ostream &out, const Graph<NeighSetType> &g)
 }
 
 //***************************************************************************
+// The class "Prim<NeighSetType>" extends "Graph<NeighSetType>"
+// adding a method to perform the Prim minumum spanning tree algorithm.
 //***************************************************************************
+template<class NeighSetType>
+class Prim : public Graph<NeighSetType> {
+  public:
+    Prim(int nvert): Graph<NeighSetType>(nvert) {};
 
-template<class NeighSetType, class DistType, class EdgeDistFunc>
-int min_span_tree(
-    const Graph<NeighSetType> &g,
-    EdgeDistFunc edge_data_to_distance, // Function to map edge data to edge distance
-    // i.e. DistType(const EdgeDataType &)
-    DistType large, // Distance larger than any possible path length.
-    DistType &min_dist, // Length of minimum spanning tree, provided all vertices
-    // have been visited (graph full connected)
-    // The following three vectors must be at least length nvertex:
-    std::vector<bool> &zvisited,     // Set to true when a vertex has been visited.
-    std::vector<DistType> &distance, // Shortest path distance to each vertex (if visited).
-    std::vector<int> &parent         // Previous vertex for shortest distance path (if visited).
-) {
-    int nvert=g.get_nvert();
-    // Initialise return data
-    int n_visited=0;
-    for (int i=0; i<nvert; i++) {
-      zvisited[i]=false;
-      distance[i]=large;
-      parent[i]=-1;
-    }
-    int cvert; // Current vertex visiting
-    DistType cdist;
-    min_dist=0.0;
-    using pair=std::tuple<DistType,int>;
-    // Create std priority queue of pairs, such that lowest distance
-    // always at the top
-    std::priority_queue<pair,std::vector<pair>,std::greater<pair>> pq;
-    // Add vertex 0 with zero distance to priority queue
-    pq.push(std::make_pair(0.0,0));
-    distance[0]=0.0;
-    while(!pq.empty()) { // Loop until priority queue is empty
-      std::tie(cdist,cvert)=pq.top(); // Get lowest distance (top) from priority queue
-      pq.pop(); // Remove the top pair from queue
-      if (!zvisited[cvert]) { // Ignore if already visited
-        zvisited[cvert]=true; // Record as visited
-        n_visited++;
-        min_dist+=cdist;
-        // Finished if all vertices have been visited or current
-        // vertex is end_vertex
-        if (n_visited==nvert) break;
-        // Iterate over the neighbours of current vertex
-        for (auto e: g[cvert]) {
-          const int neigh=e.get_vertex();
-          if (!zvisited[neigh]) { // Ignore if already visited neighbour
-            // Distance to is neighbour is current distance + edge distance
-            const DistType neigh_dist=edge_data_to_distance(e.get_data());
-            //std::cout<<cvert<<" "<<neigh<<" "<<distance[neigh]<<
-            //" "<<neigh_dist<<"\n";
-            if (neigh_dist<distance[neigh]) {
-              // Distance is less than best current distance found to neighbour.
-              // Add this distance to priority queue.
-              // Note: this vertex may already have greater distances on the
-              // priority queue. However, these will be ignored because
-              // zvisited is true for the neighbour
-              pq.push(std::make_pair(neigh_dist,neigh));
-              // Set final (shortest) distance value and set parent vertex
-              distance[neigh]=neigh_dist;
-              parent[neigh]=cvert;
+    template<class DistType, class EdgeDistFunc>
+    int min_span_tree(
+        EdgeDistFunc edge_data_to_distance, // Function to map edge data to edge distance
+                                            // i.e. DistType(const EdgeDataType &)
+        DistType large, // Distance larger than any possible path length.
+        DistType &min_dist, // Length of minimum spanning tree, provided all vertices
+                           // have been visited (graph full connected)
+        // The following three vectors must be at least length nvertex:
+        std::vector<bool> &zvisited,     // Set to true when a vertex has been visited.
+        std::vector<DistType> &distance, // Shortest path distance to each vertex (if visited).
+        std::vector<int> &parent         // Previous vertex for shortest distance path (if visited).
+    ) {
+        int nvert=this->get_nvert();
+        // Initialise return data
+        int n_visited=0;
+        for (int i=0; i<this->nvert; i++) {
+          zvisited[i]=false;
+          distance[i]=large;
+          parent[i]=-1;
+        }
+        int cvert; // Current vertex visiting
+        DistType cdist;
+        min_dist=0.0;
+        using pair=std::tuple<DistType,int>;
+        // Create std priority queue of pairs, such that lowest distance
+        // always at the top
+        std::priority_queue<pair,std::vector<pair>,std::greater<pair>> pq;
+        // Add vertex 0 with zero distance to priority queue
+        pq.push(std::make_pair(0.0,0));
+        distance[0]=0.0;
+        while(!pq.empty()) { // Loop until priority queue is empty
+          std::tie(cdist,cvert)=pq.top(); // Get lowest distance (top) from priority queue
+          pq.pop(); // Remove the top pair from queue
+          if (!zvisited[cvert]) { // Ignore if already visited
+            zvisited[cvert]=true; // Record as visited
+            n_visited++;
+            min_dist+=cdist;
+            // Finished if all vertices have been visited or current
+            // vertex is end_vertex
+            if (n_visited==nvert) break;
+            // Iterate over the neighbours of current vertex
+            for (auto e: this->g[cvert]) {
+              const int neigh=e.get_vertex();
+              if (!zvisited[neigh]) { // Ignore if already visited neighbour
+                // Distance to is neighbour is current distance + edge distance
+                const DistType neigh_dist=edge_data_to_distance(e.get_data());
+                //std::cout<<cvert<<" "<<neigh<<" "<<distance[neigh]<<
+                //" "<<neigh_dist<<"\n";
+                if (neigh_dist<distance[neigh]) {
+                  // Distance is less than best current distance found to neighbour.
+                  // Add this distance to priority queue.
+                  // Note: this vertex may already have greater distances on the
+                  // priority queue. However, these will be ignored because
+                  // zvisited is true for the neighbour
+                  pq.push(std::make_pair(neigh_dist,neigh));
+                  // Set final (shortest) distance value and set parent vertex
+                  distance[neigh]=neigh_dist;
+                  parent[neigh]=cvert;
+                }
+              }
             }
+          }
+        }
+        if (n_visited<nvert) min_dist=large;
+        return n_visited;
+    }
+};
+
+//***************************************************************************
+// This class can be used to extend the "Graph<NeighSetType>" class, or
+// any class derived from it, such as "Dijkstra<NeighSetType>",
+// with the constructor creating a undirectional random graph with
+// random edge data.
+//***************************************************************************
+template<class GraphType>
+class RandomUndirectedGraph : public GraphType {
+  public:
+    template<class RandEdgeFunc>
+    RandomUndirectedGraph(int nvert,
+        std::default_random_engine &gen, // Reference to a default random engine.
+        double p,                        // probabily that and vertex-vertex 
+	                                 // connection will exist.
+        RandEdgeFunc ran_edge_data)      // Function to create random edge data
+                                         // i.e. EdgeDataType(EdgeDataType &)
+        : GraphType(nvert) {
+
+      // Create uniform distribution [0,1]
+      auto dist=std::uniform_real_distribution<double>(0.0,1.0);
+      // Loop over all possible vertex pairs
+      for (int i=0; i<nvert; i++) {
+        for (int j=i+1; j<nvert; j++) {
+          // Generate random value and test against requested probability
+          if (dist(gen)<p) {
+            // Get random edge data
+            const auto data=ran_edge_data(gen);
+            // Add symmetric neighbour-neighbour relationships
+            this->g[i].add_neighbour(j,data);
+            this->g[j].add_neighbour(i,data);
           }
         }
       }
     }
-    if (n_visited<nvert) min_dist=large;
-    return n_visited;
-}
+};
 
 } // namespace graph
 
+//***************************************************************************
+// This template function allows the code to automatically switch between
+// std::uniform_real_distribution for real types and
+// std::uniform_int_distribution for integral types
+//***************************************************************************
+template <typename T,
+typename Distribution = typename std::conditional<
+std::is_integral<T>::value,
+std::uniform_int_distribution<T>,
+std::uniform_real_distribution<T>>::type>
+Distribution get_right_distribution(const T a, const T b) {
+  return Distribution(a, b);
+}
+
+template<class NeighSetType, class EdgeDataType, class DistType>
+void montecarlo(int nvert, double prob, DistType wmin, DistType wmax,
+    int nsamples, int outfreq, unsigned seed, bool zverbose);
+
+//***************************************************************************
+// This routine routine performs some simple tests
+//***************************************************************************
+void simple_tests()
+{
+  unsigned seed=12345678; // Fixed seed for run-to-run comparisons
+
+  montecarlo<graph::NeighbourSetAdjList<int>, int, int>
+  (10, 0.5, 1, 10, 1, 0, seed, true);
+  montecarlo<graph::NeighbourSetAdjList<double>, double, double>
+  (10, 0.5, 1, 10, 1, 0, seed, true);
+}
 
 //***************************************************************************
 // Main routine reads in the run parameters and then calls the montecarlo
@@ -484,62 +522,139 @@ int min_span_tree(
 // the two different graph storage schema
 //***************************************************************************
 int main() {
-  const bool zverbose=true;
 
-  // Use int distances
-  using DistType=int;
+  simple_tests();
+
+  // Use double distances
+  using DistType=double;  // This is the distance type
+  //using DistType=int;   // Also works with int distances
   using EdgeDataType=DistType; // The edge data consists of the same type
 
-  graph::Graph<graph::NeighbourSetAdjList<EdgeDataType>> gr("SampleTestData_mst_data.dat");
-  //graph::Graph<graph::NeighbourSetAdjMat<EdgeDataType>> gr("SampleTestData_mst_data.dat");
-  const int nvert=gr.get_nvert();
+  int nvert; // Number of vertices
+  double prob; // Probability of each possible edge existing
+  double wmin; // Minimum edge weight >0
+  double wmax; // Maximum edge weigth >=wmin
+  int nsamples; // Total number of random graphs to generate
+  int outfreq; // Print out running average of shortest distance every outfreq samples
+  // Ask for parameters
+  std::cout<<"Enter number of vertices >";
+  std::cin>>nvert;
+  std::cout<<"Enter probability [0,1] >";
+  std::cin>>prob;
+  std::cout<<"Enter min egde weight wmin (>0) >";
+  std::cin>>wmin;
+  std::cout<<"Enter max edge weight wmax (>wmin) >";
+  std::cin>>wmax;
+  std::cout<<"Enter total number of samples >";
+  std::cin>>nsamples;
+  std::cout<<"Enter output frequency >";
+  std::cin>>outfreq;
+  // Echo parameters
+  std::cout<<"nvert="<<nvert<<" prob="<<prob<<" wmin="<<wmin<<
+      " wmax="<<wmax<<" nsamples="<<nsamples<<
+      " outfreq="<<outfreq<<"\n";
 
-  if (zverbose) {
-    std::cout<<"nvert="<<nvert<<"\n";
-    // Ouput edges and data for graph
-    std::cout<<gr<<"\n";
-    // Output adjacency matrix for graph
-    gr.print_adjacency(std::cout);
-  }
+  // Get random seed
+  unsigned seed=std::chrono::system_clock::now().time_since_epoch().count();
+  //unsigned seed=12345678; // Fixed seed for run-to-run comparisons
+  std::cout<<"seed="<<seed<<"\n";
 
-  const DistType large=1000000000; // Larger than any possible path length
-  DistType min_dist;
-  std::vector<bool> zvisited(nvert); // On return will flag whether each vertex has been visited
-  std::vector<DistType> distance(nvert); // On return will hold shortest distance for visited vertex
-  std::vector<int> parent(nvert); // On return will hold the parent vertex for each visited vertex
+  std::cout<<"ADJACANCY LIST METHOD\n";
+  montecarlo<graph::NeighbourSetAdjList<EdgeDataType>, EdgeDataType, DistType>
+  (nvert, prob, wmin, wmax, nsamples, outfreq, seed, false);
 
-  const int nvisited=min_span_tree(gr,
-      [](const EdgeDataType &data){return static_cast<DistType>(data);}, large,
-      min_dist,zvisited,distance,parent);
-
-
-  if (zverbose) {
-    // Print the returned data vectors
-    std::cout<<"nvisited="<<nvisited<<"\n";
-    for (int i=1; i<nvert; i++) std::cout<<zvisited[i]<<" ";
-    std::cout<<"\n";
-    for (int i=1; i<nvert; i++) std::cout<<distance[i]<<" ";
-    std::cout<<"\n";
-    for (int i=1; i<nvert; i++) std::cout<<parent[i]<<" ";
-    std::cout<<"\n";
-  }
-
-  if (nvisited==nvert) {
-    std::cout<<"Minimum spanning tree path length= "<<min_dist<<"\n";
-
-    int count=0;
-    DistType len=0;
-    for (int i=0; i<nvert; i++) {
-      if (parent[i]>=0) {
-        std::cout<<" Edge "<<parent[i]<<"-"<<i<<" Weight "<<distance[i]<<"\n";
-        count++;
-        len+=distance[i];
-      }
-    }
-    std::cout<<"count="<<count<<" length="<<len<<"\n";
-  } else {
-    std::cout<<"Graph not full connected\n";
-  }
+  std::cout<<"ADJACANCY MATRIX METHOD\n";
+  montecarlo<graph::NeighbourSetAdjMat<EdgeDataType>, EdgeDataType, DistType>
+  (nvert, prob, wmin, wmax, nsamples, outfreq, seed, false);
 
   return 0;
+}
+
+//***************************************************************************
+// This routine performs a Monte Carlo simulation consisting of "nsamples"
+// random graphs. For each fully connected graph the average shortest path
+// is computed and added to the running average.
+// Finally the average shortest path is printed as well as the time taken.
+//***************************************************************************
+template<class NeighSetType, class EdgeDataType, class DistType>
+void montecarlo(int nvert, double prob, DistType wmin, DistType wmax,
+    int nsamples, int outfreq, unsigned seed, bool zverbose) {
+
+    // Create random generator initialised from seed
+    std::default_random_engine gen(seed);
+
+    const DistType large=1000000000; // Larger than any possible path length
+    DistType min_dist;
+    double accumavg=0.0; // Running average of shortest distance
+    int ntot=0; // Total number of successful (connected) samples
+
+    // Vector data set by shortest_distance method
+    std::vector<bool> zvisited(nvert); // On return will flag whether each vertex has been visited
+    std::vector<DistType> distance(nvert); // On return will hold shortest distance for visited vertex
+    std::vector<int> parent(nvert); // On return will hold the parent vertex for each visited vertex
+
+    //Alias for the Dijkstra graph class
+    using Prim_graph=graph::Prim<NeighSetType>;
+
+    // Record the start time of simulation
+    auto tstart = std::chrono::high_resolution_clock::now();
+
+    // Loop over random graphs
+    for (int count=0; count<nsamples; count++) {
+
+      // Create a random Graph
+      graph::RandomUndirectedGraph<Prim_graph> rg(
+          nvert, gen, prob,
+          // Lambda to compute a random edge distance in the range w1<=w<=w2
+          [wmin,wmax](std::default_random_engine &gen)
+          {
+            auto dist=get_right_distribution<DistType>(wmin,wmax);
+            return static_cast<EdgeDataType>(dist(gen));
+          }
+      );
+
+      if (zverbose) {
+        // Ouput edges and data for graph
+        std::cout<<rg<<"\n";
+        // Output adjacency matrix for graph
+        rg.print_adjacency(std::cout);
+      }
+
+      // Compute shortest distances using Dijkstra. returns the number of vertices visited
+      const int nvisited=rg.min_span_tree(
+          [](const EdgeDataType &data){return static_cast<DistType>(data);}, large,
+          min_dist,zvisited,distance,parent);
+
+      if (zverbose) {
+        // Print the returned data vectors
+        std::cout<<"nvisited="<<nvisited<<"\n";
+        for (int i=1; i<nvert; i++) std::cout<<zvisited[i]<<" ";
+        std::cout<<"\n";
+        for (int i=1; i<nvert; i++) std::cout<<distance[i]<<" ";
+        std::cout<<"\n";
+        for (int i=1; i<nvert; i++) std::cout<<parent[i]<<" ";
+        std::cout<<"\n";
+      }
+
+      // If fully connected
+      if (nvisited==nvert) {
+        ntot++;
+        // Update the running average
+        accumavg=accumavg*((ntot-1.0)/ntot)+min_dist/ntot;
+        // Print the running average every outfreq graphs
+        if ((outfreq>0) && (ntot%outfreq==0))
+          std::cout<<"ntot="<<ntot<<" avg. min. spanning length="<<accumavg<<"\n";
+      }
+    }
+
+    // Compute and print the time taken
+    auto tfinish = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed = tfinish - tstart;
+    std::cout << "Elapsed time: " << elapsed.count() << " s\n";
+
+    // Print out the results
+    std::cout<<nsamples-ntot<<" graphs out of "<<nsamples<<" were not fully connected\n";
+    std::cout<<"average minimum spanning tree length for "<<nvert<<" vertices with probability "<<
+        prob<<" and weight in ("<<wmin<<","<<wmax<<") is "<<
+        accumavg<<" ("<<ntot<<" samples) \n";
 }
