@@ -11,6 +11,7 @@
 #include <cstddef>
 #include <functional>
 #include <iostream>
+#include <iomanip>
 #include <fstream>
 #include <queue>
 #include <random>
@@ -352,16 +353,17 @@ class Graph {
     //Constructor
     Graph(int nvert) : nvert(nvert), g(nvert, NeighSetType(nvert)) {};
 
+    // Constructor to read in graph from given file name
     Graph(std::string filename) : nvert(0), g(0, NeighSetType(0)){
       std::ifstream in(filename);
       in>>nvert;
       g.resize(nvert,NeighSetType(nvert));
       int i,j;
       do {
-        in>>i>>j;
-        g[i].add_neighbour(j,in);
+        in>>i>>j;                 // Read edge vertices
+        g[i].add_neighbour(j,in); // Add edge and get any edge data from stream in
       } while( in );
-       //} while( in  && std::cout<<"> "<<i<<" "<<j<<" "<<*(g[i].find_neighbour(j))<<"\n");
+      //} while( in  && std::cout<<"> "<<i<<" "<<j<<" "<<*(g[i].find_neighbour(j))<<"\n");
       if (!in.eof()) {
         std::cout<<"Error reading file: "<<filename<<"\n";
         exit (EXIT_FAILURE);
@@ -377,7 +379,8 @@ class Graph {
 
     friend std::ostream &operator<< <>(std::ostream &out, const Graph<NeighSetType> &g);
 
-    void print_adjacency(std::ostream &out) {
+    // Print adjacency matrix
+    void print_adjacency_matrix(std::ostream &out) {
       for (int i=0; i<nvert; i++) {
         out<<i<<": ";
         for (int j=0; j<nvert; j++) {
@@ -403,138 +406,156 @@ inline std::ostream &operator<<(std::ostream &out, const Graph<NeighSetType> &g)
     return out;
 }
 
-//***************************************************************************
-//***************************************************************************
+} // namespace graph
 
-template<class NeighSetType, class DistType, class EdgeDistFunc>
-int min_span_tree(
-    const Graph<NeighSetType> &g,
-    EdgeDistFunc edge_data_to_distance, // Function to map edge data to edge distance
-    // i.e. DistType(const EdgeDataType &)
-    DistType large, // Distance larger than any possible path length.
-    DistType &min_dist, // Length of minimum spanning tree, provided all vertices
-    // have been visited (graph full connected)
-    // The following three vectors must be at least length nvertex:
-    std::vector<bool> &zvisited,     // Set to true when a vertex has been visited.
-    std::vector<DistType> &distance, // Shortest path distance to each vertex (if visited).
-    std::vector<int> &parent         // Previous vertex for shortest distance path (if visited).
-) {
+//***************************************************************************
+// Computes a Minimum Spanning Tree (MST) for the Graph<NeighSetType>
+// using Prim's algorithm.
+// Returns the number of vertices in the closed set. If this is not equal
+// to the total number of vertices, then the graph is not fully connected
+// and the algorithm has FAILED.
+// On SUCCESS:
+// A MST consists of the edges (i,parent[i]) i=1,....,nvert-1
+// length[i] is the length of edge (i,parent[i])
+// mst_len=SUM(length[i], i=1,....,nvert-1) is the total length of the MST
+//***************************************************************************
+template<class NeighSetType, class DistType, class EdgeLengthFunc>
+int Prim_min_span_tree(
+    const graph::Graph<NeighSetType> &g,
+    EdgeLengthFunc edge_data_to_length, // Function to map edge data to edge length
+                                        // i.e. DistType(const EdgeDataType &)
+    DistType len_large,                 // Length larger than any possible path length.
+    DistType &mst_len,                  // RETURNS the length of minimum spanning tree, provided
+                                        // that the graph is fully connected
+    // The first nvertex entries of the following vectors are set by this routine.
+    std::vector<int>      &parent,      // parent[i] RETURNS the parent vertex of vertex i.
+    std::vector<DistType> &distance,    // distance[i] RETURNS the length of edge (i,parent[i]).
+    std::vector<bool>     &zclosed      // zclosed[i] RETURNS whether vertex i is in the closed set.
+    ) {
     int nvert=g.get_nvert();
-    // Initialise return data
-    int n_visited=0;
+    // Initialise the empty closed set
+    int closed_size=0;
+    // Until a vertex i is in the closed set, distance[i] will store the edge length
+    // to the nearest neighbour in the closed set, or "len_large" if no neighbours are in
+    // the closed set. parent[i] will store the nearest closed neighbour (-1 if none).
+    // Once a new vertex has been added to the closed set, must update distance and
+    // parent values for its non-closed neighbours.
     for (int i=0; i<nvert; i++) {
-      zvisited[i]=false;
-      distance[i]=large;
+      zclosed[i]=false;
+      distance[i]=len_large;
       parent[i]=-1;
     }
-    int cvert; // Current vertex visiting
-    DistType cdist;
-    min_dist=0.0;
+    int cvert; // Current vertex
+    DistType clen;
+    mst_len=0.0;
     using pair=std::tuple<DistType,int>;
-    // Create std priority queue of pairs, such that lowest distance
-    // always at the top
+    // Create a priority queue of pairs, such that lowest distance
+    // is always at the top
     std::priority_queue<pair,std::vector<pair>,std::greater<pair>> pq;
-    // Add vertex 0 with zero distance to priority queue
+    // Add vertex 0 with zero distance to priority queue, so that this becomes
+    // the first member of the closed set.
     pq.push(std::make_pair(0.0,0));
     distance[0]=0.0;
     while(!pq.empty()) { // Loop until priority queue is empty
-      std::tie(cdist,cvert)=pq.top(); // Get lowest distance (top) from priority queue
-      pq.pop(); // Remove the top pair from queue
-      if (!zvisited[cvert]) { // Ignore if already visited
-        zvisited[cvert]=true; // Record as visited
-        n_visited++;
-        min_dist+=cdist;
-        // Finished if all vertices have been visited or current
-        // vertex is end_vertex
-        if (n_visited==nvert) break;
-        // Iterate over the neighbours of current vertex
-        for (auto e: g[cvert]) {
+      std::tie(clen,cvert)=pq.top();  // Get lowest distance (top) from priority queue.
+      pq.pop();                       // Remove the top pair from queue.
+      if (!zclosed[cvert]) {          // Skip if already in closed set
+        // Add vertex to close set
+        zclosed[cvert]=true;
+        closed_size++;
+        mst_len+=clen;
+        if (closed_size==nvert) break; // Finish if all vertices are in the closed set.
+
+        // Update distance to closed set for non-closed neighbours
+        for (auto e: g[cvert]) { // Loop over neighbours of current vertex
           const int neigh=e.get_vertex();
-          if (!zvisited[neigh]) { // Ignore if already visited neighbour
-            // Distance to is neighbour is current distance + edge distance
-            const DistType neigh_dist=edge_data_to_distance(e.get_data());
-            //std::cout<<cvert<<" "<<neigh<<" "<<distance[neigh]<<
-            //" "<<neigh_dist<<"\n";
-            if (neigh_dist<distance[neigh]) {
-              // Distance is less than best current distance found to neighbour.
-              // Add this distance to priority queue.
-              // Note: this vertex may already have greater distances on the
-              // priority queue. However, these will be ignored because
-              // zvisited is true for the neighbour
+          if (!zclosed[neigh]) {
+            const DistType neigh_dist=edge_data_to_length(e.get_data()); // Get edge length
+            if (neigh_dist>=0.0 && neigh_dist<distance[neigh]) {
+              // Distance is less than previous distance, add this distance to priority queue.
+              // Note: this vertex may already have greater distances in the priority queue.
+              // However, these will be ignored once the vertex is in the closed set.
               pq.push(std::make_pair(neigh_dist,neigh));
-              // Set final (shortest) distance value and set parent vertex
-              distance[neigh]=neigh_dist;
+              // Set parent vertex and distance to parent
               parent[neigh]=cvert;
+              distance[neigh]=neigh_dist;
             }
           }
         }
       }
     }
-    if (n_visited<nvert) min_dist=large;
-    return n_visited;
+    if (closed_size<nvert) mst_len=len_large; // Check graph is fully connected.
+    return closed_size;
 }
 
-} // namespace graph
-
-
 //***************************************************************************
-// Main routine reads in the run parameters and then calls the montecarlo
-// routine, first with the "NeighbourSetAdjList" scheme and then with the
-// "NeighbourSetAdjMat" scheme. This allows a comparison of the performance of
-// the two different graph storage schema
+// Main routine reads creates a graph using a
+// The Prim_min_span_tree routine is called for this graph and the
+// Minimum spanning tree (MST) information is written out.
 //***************************************************************************
 int main() {
-  const bool zverbose=true;
+  const bool zverbose=false;
 
   // Use int distances
   using DistType=int;
   using EdgeDataType=DistType; // The edge data consists of the same type
 
+  // Create graph from given file name.
   graph::Graph<graph::NeighbourSetAdjList<EdgeDataType>> gr("SampleTestData_mst_data.dat");
   //graph::Graph<graph::NeighbourSetAdjMat<EdgeDataType>> gr("SampleTestData_mst_data.dat");
   const int nvert=gr.get_nvert();
 
+  // Write out graph
+  std::cout<<"nvert="<<nvert<<"\n";
+  // Ouput edges and data for graph
+  std::cout<<"Adjacency List:\n"<<gr<<"\n";
   if (zverbose) {
-    std::cout<<"nvert="<<nvert<<"\n";
-    // Ouput edges and data for graph
-    std::cout<<gr<<"\n";
     // Output adjacency matrix for graph
-    gr.print_adjacency(std::cout);
+    std::cout<<"Adjacency Matrix:\n";
+    gr.print_adjacency_matrix(std::cout);
   }
 
-  const DistType large=1000000000; // Larger than any possible path length
-  DistType min_dist;
-  std::vector<bool> zvisited(nvert); // On return will flag whether each vertex has been visited
-  std::vector<DistType> distance(nvert); // On return will hold shortest distance for visited vertex
-  std::vector<int> parent(nvert); // On return will hold the parent vertex for each visited vertex
+  const DistType len_large=1000000000; // Larger than any possible path length
+  DistType mst_len;
+  std::vector<int>      parent(nvert); // (edges (i,parent[i]) i=1,i...,nvert-1
+                                       // will be the minimum spanning tree
+  std::vector<DistType> length(nvert); // length[i] will be the length of edge (i,parent[i])
+  std::vector<bool>     zclosed(nvert);// Stores closed set membership
 
-  const int nvisited=min_span_tree(gr,
-      [](const EdgeDataType &data){return static_cast<DistType>(data);}, large,
-      min_dist,zvisited,distance,parent);
-
+  // Compute MST using Prim's algorithm
+  const int nclosed=Prim_min_span_tree(gr,
+      [](const EdgeDataType &data){return static_cast<DistType>(data);}, len_large,
+      mst_len,parent,length,zclosed);
 
   if (zverbose) {
     // Print the returned data vectors
-    std::cout<<"nvisited="<<nvisited<<"\n";
-    for (int i=1; i<nvert; i++) std::cout<<zvisited[i]<<" ";
+    std::cout<<"nclosed="<<nclosed<<"\n";
+    std::cout<<"         i: ";
+    for (int i=1; i<nvert; i++) std::cout<<std::setw(5)<<i<<" ";
     std::cout<<"\n";
-    for (int i=1; i<nvert; i++) std::cout<<distance[i]<<" ";
+    std::cout<<" parent[i]: ";
+    for (int i=1; i<nvert; i++) std::cout<<std::setw(5)<<parent[i]<<" ";
     std::cout<<"\n";
-    for (int i=1; i<nvert; i++) std::cout<<parent[i]<<" ";
+    std::cout<<" length[i]: ";
+    for (int i=1; i<nvert; i++) std::cout<<std::setw(5)<<length[i]<<" ";
+    std::cout<<"\n";
+    std::cout<<"zclosed[i]: ";
+    for (int i=1; i<nvert; i++) std::cout<<std::setw(5)<<zclosed[i]<<" ";
     std::cout<<"\n";
   }
 
-  if (nvisited==nvert) {
-    std::cout<<"Minimum spanning tree path length= "<<min_dist<<"\n";
+  if (nclosed==nvert) {
+    // Output only valid is all vertices are in the closed set
 
+    std::cout<<"Minimum spanning tree length= "<<mst_len<<"\n";
+
+    // Output edges of MST
     int count=0;
-    DistType len=0;
-    for (int i=0; i<nvert; i++) {
-      if (parent[i]>=0) {
-        std::cout<<" Edge "<<parent[i]<<"-"<<i<<" Weight "<<distance[i]<<"\n";
-        count++;
-        len+=distance[i];
-      }
+    DistType len=0; // Check length of MST
+    for (int i=1; i<nvert; i++) {
+      std::cout<<" Edge "<<parent[i]<<"-"<<i<<" Weight "<<length[i]<<"\n";
+      count++;
+      len+=length[i];
     }
     std::cout<<"count="<<count<<" length="<<len<<"\n";
   } else {
