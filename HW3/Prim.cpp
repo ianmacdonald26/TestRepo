@@ -7,17 +7,59 @@
  *      
  */
 
-#include <chrono>
-#include <cstddef>
-#include <functional>
+/* CODE OUTPUT
+Reading graph from file: SampleTestData_mst_data.dat
+nvert=20
+Adjacency List:
+0: (1 17)  (2 2)  (3 9)  (4 24)  (5 28)  (6 29)  (7 14)  (8 28)  (9 13)  (10 23)  (11 10)  (12 15)  (13 23)  (14 15)  (15 18)  (16 11)  (17 4)  (18 27)  (19 5)
+1: (0 17)  (2 9)  (3 3)  (5 14)  (6 1)  (8 27)  (9 20)  (10 16)  (11 24)  (12 29)  (13 6)  (15 15)  (16 20)  (17 1)  (18 11)  (19 9)
+2: (0 2)  (1 9)  (3 21)  (4 21)  (5 29)  (6 13)  (7 19)  (8 16)  (9 1)  (10 11)  (11 4)  (12 12)  (14 26)  (15 5)  (16 25)  (17 12)  (18 5)  (19 24)
+3: (0 9)  (1 3)  (2 21)  (4 11)  (6 22)  (7 22)  (8 12)  (9 16)  (11 22)  (12 1)  (13 12)  (15 14)  (16 15)  (17 23)  (18 27)  (19 28)
+4: (0 24)  (2 21)  (3 11)  (5 25)  (7 1)  (8 1)  (9 5)  (11 24)  (12 29)  (13 9)  (14 4)  (15 2)  (16 5)  (18 10)  (19 10)
+5: (0 28)  (1 14)  (2 29)  (4 25)  (6 1)  (7 17)  (8 22)  (9 7)  (10 20)  (11 7)  (12 22)  (13 16)  (14 11)  (15 22)  (16 2)  (17 23)  (18 1)  (19 20)
+6: (0 29)  (1 1)  (2 13)  (3 22)  (5 1)  (8 18)  (9 7)  (11 4)  (12 18)  (13 11)  (14 14)  (15 5)  (16 24)  (17 5)  (18 13)
+7: (0 14)  (2 19)  (3 22)  (4 1)  (5 17)  (8 27)  (9 7)  (10 2)  (11 5)  (13 29)  (14 16)  (15 25)  (16 8)  (17 19)  (18 26)  (19 23)
+8: (0 28)  (1 27)  (2 16)  (3 12)  (4 1)  (5 22)  (6 18)  (7 27)  (9 3)  (10 3)  (11 26)  (12 9)  (13 25)  (14 16)  (15 7)  (16 4)  (17 23)  (18 7)
+9: (0 13)  (1 20)  (2 1)  (3 16)  (4 5)  (5 7)  (6 7)  (7 7)  (8 3)  (11 23)  (12 3)  (13 3)  (14 28)  (15 24)  (16 12)  (17 20)  (18 25)  (19 25)
+10: (0 23)  (1 16)  (2 11)  (5 20)  (7 2)  (8 3)  (12 27)  (13 13)  (14 25)  (15 2)  (16 3)  (17 4)  (18 4)  (19 15)
+11: (0 10)  (1 24)  (2 4)  (3 22)  (4 24)  (5 7)  (6 4)  (7 5)  (8 26)  (9 23)  (12 1)  (14 1)  (15 20)  (16 20)  (17 22)  (18 19)  (19 28)
+12: (0 15)  (1 29)  (2 12)  (3 1)  (4 29)  (5 22)  (6 18)  (8 9)  (9 3)  (10 27)  (11 1)  (13 23)  (14 6)  (15 9)  (16 28)  (17 1)  (18 6)  (19 13)
+13: (0 23)  (1 6)  (3 12)  (4 9)  (5 16)  (6 11)  (7 29)  (8 25)  (9 3)  (10 13)  (12 23)  (14 5)  (15 19)  (16 18)  (17 4)  (18 16)  (19 12)
+14: (0 15)  (2 26)  (4 4)  (5 11)  (6 14)  (7 16)  (8 16)  (9 28)  (10 25)  (11 1)  (12 6)  (13 5)  (15 6)  (16 27)  (17 15)  (18 1)  (19 28)
+15: (0 18)  (1 15)  (2 5)  (3 14)  (4 2)  (5 22)  (6 5)  (7 25)  (8 7)  (9 24)  (10 2)  (11 20)  (12 9)  (13 19)  (14 6)  (16 23)  (17 21)  (18 28)  (19 2)
+16: (0 11)  (1 20)  (2 25)  (3 15)  (4 5)  (5 2)  (6 24)  (7 8)  (8 4)  (9 12)  (10 3)  (11 20)  (12 28)  (13 18)  (14 27)  (15 23)  (17 9)  (18 11)  (19 12)
+17: (0 4)  (1 1)  (2 12)  (3 23)  (5 23)  (6 5)  (7 19)  (8 23)  (9 20)  (10 4)  (11 22)  (12 1)  (13 4)  (14 15)  (15 21)  (16 9)  (18 20)  (19 9)
+18: (0 27)  (1 11)  (2 5)  (3 27)  (4 10)  (5 1)  (6 13)  (7 26)  (8 7)  (9 25)  (10 4)  (11 19)  (12 6)  (13 16)  (14 1)  (15 28)  (16 11)  (17 20)  (19 11)
+19: (0 5)  (1 9)  (2 24)  (3 28)  (4 10)  (5 20)  (7 23)  (9 25)  (10 15)  (11 28)  (12 13)  (13 12)  (14 28)  (15 2)  (16 12)  (17 9)  (18 11)
+
+Minimum spanning tree length= 30
+ Edge 17-1 Weight 1
+ Edge 0-2 Weight 2
+ Edge 12-3 Weight 1
+ Edge 8-4 Weight 1
+ Edge 6-5 Weight 1
+ Edge 1-6 Weight 1
+ Edge 4-7 Weight 1
+ Edge 9-8 Weight 3
+ Edge 2-9 Weight 1
+ Edge 7-10 Weight 2
+ Edge 12-11 Weight 1
+ Edge 9-12 Weight 3
+ Edge 9-13 Weight 3
+ Edge 11-14 Weight 1
+ Edge 4-15 Weight 2
+ Edge 5-16 Weight 2
+ Edge 12-17 Weight 1
+ Edge 14-18 Weight 1
+ Edge 15-19 Weight 2
+count=19 length=30
+*/
+
 #include <iostream>
 #include <iomanip>
 #include <fstream>
 #include <queue>
-#include <random>
 #include <tuple>
-#include <type_traits>
-#include <utility>
 #include <vector>
 #include <string>
 
@@ -48,8 +90,8 @@ class Neighbour {
     friend std::ostream &operator<< <>(std::ostream &out,
         Neighbour<EdgeDataType> const neigh);
   private:
-    int vertex; // Connecting vertex
-    EdgeDataType data;     // Edge data
+    int vertex;        // Connecting vertex
+    EdgeDataType data; // Edge data
 };
 
 template<class EdgeDataType> inline std::ostream &operator<<(std::ostream &out,
@@ -84,9 +126,10 @@ class NeighbourSetAdjList {
       neighbours.push_back(Neighbour<EdgeDataType>(vertex,data));
       return true;
     }
+    // Add neighbour, getting data from supplied input stream
     bool add_neighbour(int vertex, std::istream & in) {
       EdgeDataType data;
-      const bool z=in>>data;
+      const bool z=in>>data; // Read in edge data
       if (z)
         neighbours.push_back(Neighbour<EdgeDataType>(vertex,data));
       return z;
@@ -99,6 +142,7 @@ class NeighbourSetAdjList {
       }
       return nullptr; // Neighbour i not found
     }
+
     // iterator begin and end
     iterator begin() {return iterator(neighbours.begin());};
     iterator end() {return iterator(neighbours.end());};
@@ -183,164 +227,8 @@ class NeighbourSetAdjList_const_iterator {
 };
 
 //***************************************************************************
-// The class "NeighbourSetAdjMat<EdgeDataType>" holds the set of neighbours 
-// for a particular vertex using the Adjacency Matrix approach.
-// This implementation stores a std::vector with an entry for the all possible neighbours.
-// Only the entries corresponding to actual neighbours have valid vertex numbers set.
-// Iterators are provides to allow the the user to iterate over the set of neighbours
-// The iterators are more complicated and inefficient for this implementation,
-// because they need to skip over the entries that are not neighbours.
-//***************************************************************************
-template<class EdgeDataType> class NeighbourSetAdjMat;
-template<class EdgeDataType> class NeighbourSetAdjMat_iterator;
-template<class EdgeDataType> class NeighbourSetAdjMat_const_iterator;
-template<class EdgeDataType> std::ostream &operator<<(std::ostream &out,
-    NeighbourSetAdjMat<EdgeDataType> const list);
-
-template<class EdgeDataType>
-class NeighbourSetAdjMat {
-  public:
-    using iterator=NeighbourSetAdjMat_iterator<EdgeDataType>;
-    using const_iterator=NeighbourSetAdjMat_const_iterator<EdgeDataType>;
-    // Constructor
-    NeighbourSetAdjMat(int nvert) : neighbours(nvert) {};
-    bool add_neighbour(int vertex, const EdgeDataType &data=EdgeDataType()) {
-      neighbours[vertex]=Neighbour<EdgeDataType>(vertex,data);
-      return true;
-    }
-    bool add_neighbour(int vertex, std::istream & in) {
-      EdgeDataType data;
-      const bool z=in>>data;
-      if (z)
-        neighbours[vertex]=Neighbour<EdgeDataType>(vertex,data);
-      return z;
-    }
-    // Find neighbour and return pointer to data
-    const EdgeDataType *find_neighbour(int i) {
-      if (neighbours[i].get_vertex()>=0) return &neighbours[i].get_data();
-      return nullptr; // Neighbour i not found
-    }
-    // iterator begin and end
-    iterator begin() {
-      auto it=neighbours.begin();
-      // Find first entry
-      while ((it!=neighbours.end())&&(it->get_vertex()<=0)) ++it;
-      return iterator(it,neighbours.end());
-    };
-    iterator end() {return iterator(neighbours.end(),neighbours.end());};
-    const_iterator begin() const {
-      auto it=neighbours.cbegin();
-      // Find first entry
-      while ((it!=neighbours.cend())&&(it->get_vertex()<=0)) ++it;
-      return const_iterator(it,neighbours.cend());
-    };
-    const_iterator end() const {return const_iterator(neighbours.cend(),neighbours.cend());};
-    const_iterator cbegin() const {
-      auto it=neighbours.cbegin();
-      // Find first entry
-      while ((it!=neighbours.cend())&&(it->get_vertex()<=0)) ++it;
-      return const_iterator(it,neighbours.cend());
-    };
-    const_iterator cend() const {return const_iterator(neighbours.cend(),neighbours.cend());};
-
-    friend std::ostream &operator<< <>(std::ostream &out,
-        NeighbourSetAdjMat<EdgeDataType> const list);
-
-  private:
-    // Vector of neighbours
-    std::vector<Neighbour<EdgeDataType>> neighbours;
-};
-
-template<class EdgeDataType>
-inline std::ostream &operator<<(std::ostream &out,
-    NeighbourSetAdjMat<EdgeDataType> const set) {
-    for (auto neigh: set.neighbours)
-      if (neigh.get_vertex()>0) out<<neigh<<" ";
-    return out;
-}
-
-//*************************************************
-// iterator class for "NeighbourSetAdjMat"
-//*************************************************
-template<class EdgeDataType>
-class NeighbourSetAdjMat_iterator {
-  public:
-    using self_type=NeighbourSetAdjMat_iterator;
-    using iterator_category=std::forward_iterator_tag;
-    using value_type=Neighbour<EdgeDataType>;
-    using difference_type=std::ptrdiff_t;
-    using pointer=Neighbour<EdgeDataType>*;
-    using reference=Neighbour<EdgeDataType>&;
-    // Constructor
-    NeighbourSetAdjMat_iterator(
-        typename std::vector<value_type>::iterator const &it,
-        typename std::vector<value_type>::iterator const &itend)
-    : it(it), itend(itend) {};
-    reference operator*() const {return *it;};
-    pointer operator->() const {return it;};
-    self_type& operator++() {
-      it++;
-      // Find next valid neighbour
-      while ((it!=itend)&&(it->get_vertex()<=0)) ++it;
-      return *this;
-    };
-    self_type operator++(int) {
-      self_type tmp(*this);
-      // Find next valid neighbour
-      while ((it!=itend)&&(it->get_vertex()<=0)) ++it;
-      return tmp;
-    }
-    bool operator==(const self_type &rhs) const {return it==rhs.it;};
-    bool operator!=(const self_type &rhs) const {return it!=rhs.it;};
-  private:
-    typename std::vector<value_type>::iterator it;
-    typename std::vector<value_type>::iterator itend;
-};
-
-//*************************************************
-// const_iterator class for "NeighbourSetAdjMat"
-//*************************************************
-template<class EdgeValueType>
-class NeighbourSetAdjMat_const_iterator {
-  public:
-    using self_type=NeighbourSetAdjMat_const_iterator;
-    using iterator_category=std::forward_iterator_tag;
-    using value_type=Neighbour<EdgeValueType>;
-    using difference_type=std::ptrdiff_t;
-    using pointer=const Neighbour<EdgeValueType>*;
-    using reference=const Neighbour<EdgeValueType>&;
-    // Constructor
-    NeighbourSetAdjMat_const_iterator(
-        typename std::vector<value_type>::const_iterator const &it,
-        typename std::vector<value_type>::const_iterator const &itend)
-    : it(it), itend(itend) {};
-    reference operator*() const {return *it;};
-    pointer operator->() const {return it;};
-    self_type& operator++() {
-      it++;
-      // Find next valid neighbour
-      while ((it!=itend)&&(it->get_vertex()<=0)) ++it;
-      return *this;
-    }
-    self_type operator++(int) {
-      self_type tmp(*this);
-      // Find next valid neighbour
-      while ((it!=itend)&&(it->get_vertex()<=0)) ++it;
-      return tmp;
-    }
-    bool operator==(const self_type &rhs) const {return it==rhs.it;};
-    bool operator!=(const self_type &rhs) const {return it!=rhs.it;};
-  private:
-    typename std::vector<value_type>::const_iterator it;
-    typename std::vector<value_type>::const_iterator itend;
-};
-
-//***************************************************************************
 // The "Graph<NeighSetType>" class is the container of the neighbour sets for
 // all vertices.
-// The template parameter NeighSetType can either be 
-// NeighbourSetAdjList<EdgeValueType> or  NeighbourSetAdjMat<EdgeValueType>,
-// or some other to be defined neighbour set class.
 // The [] operator is overloaded to return a reference to the neighbour set
 // for the requested vertex.
 //***************************************************************************
@@ -355,6 +243,7 @@ class Graph {
 
     // Constructor to read in graph from given file name
     Graph(std::string filename) : nvert(0), g(0, NeighSetType(0)){
+      std::cout<<"Reading graph from file: "<<filename<<"\n";
       std::ifstream in(filename);
       in>>nvert;
       g.resize(nvert,NeighSetType(nvert));
@@ -502,17 +391,14 @@ int main() {
 
   // Create graph from given file name.
   graph::Graph<graph::NeighbourSetAdjList<EdgeDataType>> gr("SampleTestData_mst_data.dat");
-  //graph::Graph<graph::NeighbourSetAdjMat<EdgeDataType>> gr("SampleTestData_mst_data.dat");
   const int nvert=gr.get_nvert();
 
   // Write out graph
   std::cout<<"nvert="<<nvert<<"\n";
-  // Ouput edges and data for graph
-  std::cout<<"Adjacency List:\n"<<gr<<"\n";
+  std::cout<<"Adjacency List:\n"<<gr<<"\n"; // Ouput edges and data for graph
   if (zverbose) {
-    // Output adjacency matrix for graph
     std::cout<<"Adjacency Matrix:\n";
-    gr.print_adjacency_matrix(std::cout);
+    gr.print_adjacency_matrix(std::cout); // Output adjacency matrix for graph
   }
 
   const DistType len_large=1000000000; // Larger than any possible path length
