@@ -228,8 +228,7 @@ class NeighbourSetAdjMat {
     }
     // Find neighbour and return pointer to data
     const EdgeDataType *find_neighbour(int i) {
-      auto neigh=neighbours[i];
-      if (neigh.get_vertex()>0) return &neigh.get_data();
+      if (neighbours[i].get_vertex()>0) return &neighbours[i].get_data();
       return nullptr; // Neighbour i not found
     }
     // iterator begin and end
@@ -244,14 +243,14 @@ class NeighbourSetAdjMat {
       auto it=neighbours.cbegin();
       // Find first entry
       while ((it!=neighbours.cend())&&(it->get_vertex()<=0)) ++it;
-      return iterator(it,neighbours.cend());
+      return const_iterator(it,neighbours.cend());
     };
     const_iterator end() const {return const_iterator(neighbours.cend(),neighbours.cend());};
     const_iterator cbegin() const {
       auto it=neighbours.cbegin();
       // Find first entry
       while ((it!=neighbours.cend())&&(it->get_vertex()<=0)) ++it;
-      return iterator(it,neighbours.cend());
+      return const_iterator(it,neighbours.cend());
     };
     const_iterator cend() const {return const_iterator(neighbours.cend(),neighbours.cend());};
 
@@ -377,7 +376,7 @@ class Graph {
       for (int i=0; i<nvert; i++) {
         out<<i<<": ";
         for (int j=0; j<nvert; j++) {
-          auto *ed=g[i].find_neighbour(j);
+          auto ed=g[i].find_neighbour(j);
           if (ed) {
             out<<"("<<j<<" "<<*ed<<")";
           } else {
@@ -543,7 +542,11 @@ void simple_tests()
 
   montecarlo<graph::NeighbourSetAdjList<int>, int, int>
   (10, 0.5, 1, 10, 1, 0, seed, true);
+  montecarlo<graph::NeighbourSetAdjMat<int>, int, int>
+  (10, 0.5, 1, 10, 1, 0, seed, true);
   montecarlo<graph::NeighbourSetAdjList<double>, double, double>
+  (10, 0.5, 1, 10, 1, 0, seed, true);
+  montecarlo<graph::NeighbourSetAdjMat<double>, double, double>
   (10, 0.5, 1, 10, 1, 0, seed, true);
 }
 
@@ -555,7 +558,7 @@ void simple_tests()
 //***************************************************************************
 int main() {
 
-  // simple_tests();
+  //simple_tests();
 
   // Use double distances
   using DistType=double;  // This is the distance type
