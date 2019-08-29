@@ -1,4 +1,9 @@
-
+/*
+ * main.cpp
+ *
+ *  Created on: 28 Aug 2019
+ *      Author: Ian
+ */
 #include "hex.h"
 #include <iostream>
 
@@ -25,13 +30,15 @@ int main(int argc, char **argv) {
 
   std::cout<<game<<"\n";
 
-  while (game.next_move()==0);
+  int status;
+  while (true) {
+    status=game.next_move();
+    if (status!=0) break;
+  }
 
-  std::cout<<game<<"\n";
+  if (status>0) std::cout<<game.get_turn()<<" has won\n";
 
-  std::cout<<"END OF GAME\n";
-
-  game.print_moves(std::cout);
+  //game.print_moves(std::cout);
 
 	return 0;
 }

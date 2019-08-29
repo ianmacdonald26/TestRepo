@@ -1,9 +1,16 @@
-#ifndef HEX_H
-#define HEX_H
+/*
+ * hex.h
+ *
+ *  Created on: 28 Aug 2019
+ *      Author: Ian
+ */
+#ifndef HEX_H_
+#define HEX_H_
 
 #include <iostream>
 #include <vector>
 #include <string>
+#include "graph.h"
 
 enum colour: char {
   BLANK='.',
@@ -16,9 +23,10 @@ enum colour: char {
 class hex {
   public:
     hex(int dim, bool zfirst=true);
-    hex(const std::string &filename);
+    hex(std::string filename);
     int next_move();
     void print_moves(std::ostream &out) const;
+    std::string get_turn() const {return (turn==colour::BLUE) ? "BLUE" : "RED";};
   private:
     int dim;
     colour human=colour::BLUE;
@@ -26,14 +34,21 @@ class hex {
     colour turn=colour::BLUE;
     std::vector<colour> board;
     std::vector<std::pair<int,int>> moves;
+    std::vector<bool> zvisited;
+    std::vector<int> dist;
+    std::vector<int> parent;
+    std::vector<bool> zend;
+
+    graph::Graph<graph::NeighbourSetAdjList<int>> graph;
 
     int get_loc(int col, int row) const {return row*dim+col;};
-    std::string get_turn() const {return (turn==colour::BLUE) ? "BLUE" : "RED";};
-    void move(int col, int row);
+    bool move(int col, int row);
     void next_turn() {turn = (turn==colour::BLUE) ? colour::RED : colour::BLUE;};
     void display(std::ostream &out, const std::vector<colour> &board) const;
     int human_move();
+    void create_graph();
+    bool check_for_win(colour c, bool zpath=false);
     friend std::ostream &operator<<(std::ostream &out, const hex &h);
 };
 
-#endif
+#endif /* HEX_H_ */
