@@ -7,15 +7,17 @@
 #include "hex.h"
 #include <iostream>
 #include <iomanip>
-#include <fstream>
-#include <sstream>
 #include "Dijkstra.h"
 
-hex::hex(int dim, bool zfirst) :
+hex::hex(
+    int dim,
+    bool zfirst,
+    const std::vector<std::pair<int,int>> &mov
+) :
   dim(dim),
+  human(zfirst ? colour::BLUE : colour::RED),
   nloc(dim*dim),
   board(nloc, colour::BLANK),
-  human(zfirst ? colour::BLUE : colour::RED),
   graph(nloc),
   zvisited(nloc),
   dist(nloc),
@@ -23,62 +25,11 @@ hex::hex(int dim, bool zfirst) :
   zend(nloc)
 {
   create_graph();
-}
 
-hex::hex(std::string filename) {
-  std::string line;
+  for (auto m: mov) move(m.first,m.second);
 
-  std::cout<<"Reading input from file: "<<filename<<"\n";
-  std::ifstream in(filename);
-  if (!in) {
-    std::cout<<"Unable to open file: "<<filename<<"\n";
-    exit(EXIT_FAILURE);
-  }
+  std::cout<<*this<<"\n";
 
-  {
-    std::getline(in, line);
-    std::stringstream ss(line);
-    ss>>dim;
-    if (!ss) {
-      std::cout<<"Unable to read dimension from file: "<<filename<<"\n";
-      exit(EXIT_FAILURE);
-    }
-  }
-  std::cout<<"dim="<<dim<<"\n";
-  nloc=dim*dim;
-  board.resize(nloc, colour::BLANK);
-
-  graph.resize(nloc);
-  create_graph();
-  zvisited.resize(nloc);
-  dist.resize(nloc);
-  parent.resize(nloc);
-  zend.resize(nloc);
-
-  {
-    bool zfirst;
-    std::getline(in, line);
-    std::stringstream ss(line);
-    ss>>zfirst;
-    if (!ss) {
-      std::cout<<"Unable to read zfirst from file: "<<filename<<"\n";
-      exit(EXIT_FAILURE);
-    }
-    std::cout<<"zfirst="<<zfirst<<"\n";
-    human = zfirst ? colour::BLUE : colour::RED;
-  }
-
-  while (true) {
-    int row,col;
-    std::getline(in, line);
-    std::stringstream ss(line);
-    ss>>col>>row;
-    if (!ss) break;
-    std::cout<<"col="<<col<<" row="<<row<<" #"<<get_turn()<<"\n";
-    move(col,row);
-  }
-
-  in.close();
 }
 
 bool hex::check_for_win(colour c, bool zpath) {
@@ -250,7 +201,9 @@ int hex::human_move() {
     status=0;
     std::string line;
     std::cout<<get_turn()<<"> ";
-    std::getline(std::cin, line);
+    do {
+      std::getline(std::cin, line);
+    } while (line.empty());
     std::stringstream ss(line);
     ss>>col;
     if (ss && (col<0)) return -1;

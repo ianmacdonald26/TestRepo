@@ -22,15 +22,18 @@ enum colour: char {
 
 class hex {
   public:
-    hex(int dim, bool zfirst=true);
-    hex(std::string filename);
+    hex(
+        int dim,
+        bool zfirst=true,
+        const std::vector<std::pair<int,int>> &mov=std::vector<std::pair<int,int>>()
+        );
     int next_move();
     void print_moves(std::ostream &out) const;
     std::string get_turn() const {return (turn==colour::BLUE) ? "BLUE" : "RED";};
   private:
-    int dim;
-    colour human=colour::BLUE;
-    int nloc;
+    const int dim;
+    const colour human=colour::BLUE;
+    const int nloc;
     colour turn=colour::BLUE;
     std::vector<colour> board;
     std::vector<std::pair<int,int>> moves;
