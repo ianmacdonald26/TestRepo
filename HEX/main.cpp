@@ -45,16 +45,6 @@ int main(int argc, char **argv) {
 
   hex game(dim,zfirst,moves);
 
-  int status;
-  while (true) {
-    status=game.next_move();
-    if (status!=0) break;
-  }
-
-  if (status>0) std::cout<<game.get_turn()<<" has won\n";
-
-  game.print_moves(std::cout);
-
 	return 0;
 }
 
