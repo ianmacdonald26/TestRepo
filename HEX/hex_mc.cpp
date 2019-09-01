@@ -8,6 +8,7 @@
 #include <iostream>
 #include <iomanip>
 #include <algorithm>  //std::shuffle
+#include <chrono>
 
 // Play a computer move
 // Returns zero for unfinished, positive for win, negative for exit
@@ -33,7 +34,10 @@ int hex::computer_move() {
   std::vector<int> totcount(nrem,0);
   std::vector<int> wincount(nrem,0);
 
-  const int maxcnt=100000;
+  // Record the start time of simulation
+  auto tstart = std::chrono::high_resolution_clock::now();
+
+  const int maxcnt=1000000;
   for (int cnt=0; cnt<maxcnt; cnt++) {
 
     // Shuffle permutation vector
@@ -68,6 +72,11 @@ int hex::computer_move() {
       }
     }
   }
+
+  // Record the end time of simulation
+  auto tend = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> elapsed = tend - tstart;
+  std::cout << maxcnt<<" simultations. Elapsed time " << elapsed.count() << " s\n";
 
   // Compute statistics
   // Find move with highest win/run ratio
@@ -110,7 +119,7 @@ int hex::computer_move() {
   for (int i=0; i<nrem; i++) board[mlist[i]]=colour::BLANK;
 
   // Make best move.
-  std::cout<<"Computer> "<<col<<" "<<row<<"\n";
+  std::cout<<"Computer "<<get_turn()<<"> "<<col<<" "<<row<<"\n";
   // The method move returns true if game has been won
   return move(col,row) ? 1 : 0;
 }
