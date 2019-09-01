@@ -7,6 +7,7 @@
 #include "hex.h"
 #include <iostream>
 #include <iomanip>
+#include <chrono>
 #include "Dijkstra.h"
 
 // Constructor. Sets up board an plays game
@@ -26,6 +27,11 @@ hex::hex(
   parent(nloc),
   zend(nloc)
 {
+  // Randomize seed for generator
+  //unsigned seed=std::chrono::system_clock::now().time_since_epoch().count();
+  unsigned seed=123456;
+  gen.seed(seed);
+
   create_graph(); // Create graph corresponding to board
 
   // Play pre-existing moves
@@ -124,19 +130,12 @@ int hex::human_move() {
 
   // Make move.
   // The method move returns true if game has been won
-  return move(row,col) ? 1 : 0;
-}
-
-// Play a computer move
-// Returns zero for unfinished, positive for win, negative for exit
-int hex::computer_move() {
-  // Computer is human at present
-  return human_move();
+  return move(col,row) ? 1 : 0;
 }
 
 // Make (col,row) move on board that has already been check to be valid
 bool hex::move(int col, int row) {
-  const int loc=get_loc(row,col);
+  const int loc=get_loc(col,row);
   board[loc]=turn;                          // Update the board
   moves.push_back(std::make_pair(col,row)); // Add to list of moves made
   nrem--; // Decrement number of remaining empty locations
@@ -331,17 +330,30 @@ bool hex::check_for_win(colour c, bool zpath) {
       [this, c](int vert, int &data){return (this->board[vert]==c) ? data : -1;},
       large,
       zvisited, dist, parent);
-/*
- // Debugging prints
+
+ /*// Debugging prints
+  std::cout<<"loc\n";
   for (int row=dim-1; row>=0; row--) {
     for (int col=0; col<dim; col++) std::cout<<std::setw(3)<<get_loc(col,row)<<" ";
     std::cout<<"\n";
   }
+  std::cout<<"zvisited\n";
   for (int row=dim-1; row>=0; row--) {
     for (int col=0; col<dim; col++) std::cout<<std::setw(3)<<zvisited[get_loc(col,row)]<<" ";
     std::cout<<"\n";
   }
-*/
+  std::cout<<"parent\n";
+  for (int row=dim-1; row>=0; row--) {
+    for (int col=0; col<dim; col++) std::cout<<std::setw(3)<<parent[get_loc(col,row)]<<" ";
+    std::cout<<"\n";
+  }
+  std::cout<<"dist\n";
+  for (int row=dim-1; row>=0; row--) {
+    for (int col=0; col<dim; col++) std::cout<<std::setw(3)<<
+        dist[get_loc(col,row)]<<" ";
+    std::cout<<"\n";
+  }*/
+
   if (zpath&&(iend>=0)) {
     // If Won and zpath, trace back shortest path and change colour to wc
     int  curr=iend;

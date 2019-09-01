@@ -1,6 +1,6 @@
 PROJECT_ROOT = $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 
-OBJS = hex.o main.o
+OBJS = hex.o hex_mc.o main.o
 
 ifeq ($(BUILD_MODE),debug)
 	CFLAGS += -g

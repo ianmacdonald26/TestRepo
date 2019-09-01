@@ -10,6 +10,7 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <random>
 #include "graph.h"
 
 // Used to record status of a board location, Value is character for ascii board output
@@ -45,9 +46,12 @@ class hex {
     const int nloc;                          // Number of locations in board (ndim*dmim)
     int nrem;                                // Number of empty locations
     colour turn=colour::BLUE;                // Colour of current turn, blue is always first
+    colour nextturn=colour::RED;             // Colour of next turn
     std::vector<colour> board;               // Current status of each location
     std::vector<std::pair<int,int>> moves;   // Stores previous moves
     graph::Graph<graph::NeighbourSetAdjList<int>> graph;  // Graph of hex board
+    std::default_random_engine gen;          // Random number generator
+
     // The following four vectors are used by the Dijkstra shortest path routine
     std::vector<bool> zvisited;
     std::vector<int> dist;
@@ -55,7 +59,10 @@ class hex {
     std::vector<bool> zend;
 
     int get_loc(int col, int row) const {return row*dim+col;}; // Convert column, row to location
-    void next_turn() {turn = (turn==colour::BLUE) ? colour::RED : colour::BLUE;}; // Change turn
+    // Get column and row from board entry
+    std::pair<int,int> get_pos(int loc) const {return std::make_pair(loc%dim,loc/dim);};
+    //void next_turn() {turn = (turn==colour::BLUE) ? colour::RED : colour::BLUE;}; // Change turn
+    void next_turn() {colour c=turn; turn=nextturn; nextturn=c;}; // Change turn
     std::string get_turn() const {return (turn==colour::BLUE) ? "BLUE" : "RED";}; // Convert turn to string
 
     int play();                      // Play game
