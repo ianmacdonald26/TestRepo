@@ -28,7 +28,6 @@ int hex::computer_move() {
 
   // Number of moves that will be colour turn
   const int nfirst= nrem%2==0 ? nrem/2 : nrem/2+1;
-  // std::cout<<"nfirst="<<nfirst<<"\n";
 
   // Array to count number of wins and total number of runs
   std::vector<int> totcount(nrem,0);
@@ -37,15 +36,11 @@ int hex::computer_move() {
   // Record the start time of simulation
   auto tstart = std::chrono::high_resolution_clock::now();
 
-  const int maxcnt=1000000;
+  const int maxcnt=1000000; // Number of Monte Carlo simulations to perform
   for (int cnt=0; cnt<maxcnt; cnt++) {
 
     // Shuffle permutation vector
     std::shuffle(perm.begin(),perm.end(),gen);
-    /*for (auto v: mlist) std::cout<<std::setw(3)<<v<<" ";
-    std::cout<<"\n";
-    for (auto v: perm) std::cout<<std::setw(3)<<v<<" ";
-    std::cout<<"\n";*/
 
     // Fill blank spaces based on permutation vector.
     // Entries 0,...,nfirst-1 are colour turn, the remainder are nextturn
@@ -119,7 +114,8 @@ int hex::computer_move() {
   for (int i=0; i<nrem; i++) board[mlist[i]]=colour::BLANK;
 
   // Make best move.
-  std::cout<<"Computer "<<get_turn()<<"> "<<col<<" "<<row<<"\n";
+  std::cout<<"Computer "<<get_turn()<<"> "
+      ""<<col<<" "<<row<<"\n";
   // The method move returns true if game has been won
   return move(col,row) ? 1 : 0;
 }
